@@ -969,6 +969,10 @@ fastframe_icons::icons! {
         Sticker => "sticker",
         Sun => lucide "sun",
         Tag => "tag",
+        TrafficClose => "traffic-close",
+        TrafficMaximize => "traffic-maximize",
+        TrafficMinimize => "traffic-minimize",
+        TrafficRestore => "traffic-restore",
         Trash => lucide "trash-2",
         User => lucide "user",
         UserMinus => "user-minus",
@@ -1508,6 +1512,16 @@ pub fn caption_footprint(ctx: &egui::Context) -> fastframe_titlebar::Footprint {
     }
     if cfg!(target_os = "macos") {
         return fastframe_titlebar::Footprint::default();
+    }
+    // On Linux ZapFast draws macOS-style traffic lights at the top-left
+    // corner instead of GNOME's buttons, so the room is on the left and does
+    // not scale with the interface zoom, like the macOS lights' inset.
+    if crate::ui::window_controls::active(ctx) {
+        return fastframe_titlebar::Footprint {
+            left: crate::ui::window_controls::WIDTH / ctx.zoom_factor(),
+            right: 0.0,
+            height: TOP_BAR_HEIGHT,
+        };
     }
     fastframe_titlebar::footprint(ctx, TOP_BAR_HEIGHT)
 }

@@ -145,10 +145,11 @@ name or description, in the interface language or in English.
 - **Custom title bar** (Windows and Linux, off by default): ZapFast draws
   its own title bar instead of the desktop's. The window buttons sit in the
   top corner of whichever pane is there (the open chat's header, the info
-  panel, Settings, the Calls page, the call screen), on the left or the
-  right as GNOME's button layout says, or Windows' three square buttons;
-  the headers drag the window and a double-click maximizes or restores it,
-  and the window's edges resize it. Turning it on or off replaces the
+  panel, Settings, the Calls page, the call screen). On Linux they are
+  macOS-style traffic lights at the top-left corner (red to close, yellow to
+  minimize, green to zoom), each showing its symbol on hover; on Windows,
+  the three square caption buttons. The headers drag the window and a
+  double-click maximizes or restores it, and the window's edges resize it. Turning it on or off replaces the
   window at once, keeping the open chat and any call. It is off by default
   because some Intel graphics drivers draw a frameless window with a black
   band at the top, with clicks landing below where they are drawn. macOS

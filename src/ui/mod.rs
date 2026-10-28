@@ -26,6 +26,7 @@ pub mod rail;
 pub mod settings;
 pub mod update;
 pub mod widgets;
+pub mod window_controls;
 
 use egui::{Align2, CornerRadius, Frame, Margin, Stroke, vec2};
 
@@ -903,22 +904,31 @@ fn window_chrome(app: &App, ui: &mut egui::Ui) {
         restore: &restore,
         close: &close,
     };
-    fastframe_titlebar::controls(ui, &style, &labels);
-    // The buttons draw in egui's foreground layer, as the call screen, the
-    // media viewer and dialogs do; a newer area there would cover them, and a
-    // modal one would take their clicks. These are the crate's area names.
-    let layout = fastframe_titlebar::layout();
-    for (area, buttons) in [
-        ("fastframe-titlebar-left", &layout.left),
-        ("fastframe-titlebar-right", &layout.right),
-    ] {
-        if buttons.is_empty() {
-            continue;
+    // On Linux, draw the macOS-style traffic lights at the top-left corner
+    // instead of GNOME's round buttons; everywhere else keep the desktop's
+    // look through fastframe-titlebar. The window's resize edges stay the
+    // crate's on every platform.
+    if window_controls::active(ui.ctx()) {
+        window_controls::controls(ui.ctx(), &palette, app.locale);
+    } else {
+        let _ = &style;
+        fastframe_titlebar::controls(ui, &style, &labels);
+        // The buttons draw in egui's foreground layer, as the call screen, the
+        // media viewer and dialogs do; a newer area there would cover them, and
+        // a modal one would take their clicks. These are the crate's area names.
+        let layout = fastframe_titlebar::layout();
+        for (area, buttons) in [
+            ("fastframe-titlebar-left", &layout.left),
+            ("fastframe-titlebar-right", &layout.right),
+        ] {
+            if buttons.is_empty() {
+                continue;
+            }
+            ui.ctx().move_to_top(egui::LayerId::new(
+                egui::Order::Foreground,
+                egui::Id::new(area),
+            ));
         }
-        ui.ctx().move_to_top(egui::LayerId::new(
-            egui::Order::Foreground,
-            egui::Id::new(area),
-        ));
     }
     fastframe_titlebar::resize(ui);
 }
