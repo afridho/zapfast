@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=ZapFast
+Name=WhatsApp
 GenericName=WhatsApp Client
 Comment=A native WhatsApp client
 Exec=zapfast %U
@@ -14,5 +14,5 @@ SingleMainWindow=true
 Actions=quit;
 
 [Desktop Action quit]
-Name=Quit ZapFast
+Name=Quit WhatsApp
 Exec=zapfast quit

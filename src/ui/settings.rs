@@ -1791,7 +1791,7 @@ fn about(app: &mut App, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
             theme::text(
                 ui,
-                format!("ZapFast {}", env!("CARGO_PKG_VERSION")),
+                format!("{} {}", crate::DISPLAY_NAME, env!("CARGO_PKG_VERSION")),
                 theme::semibold(16.0),
                 palette.text,
             );

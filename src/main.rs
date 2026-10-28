@@ -333,7 +333,7 @@ fn run() -> eframe::Result<()> {
     // The name and icon volume mixers show for every sound ZapFast plays or records; set before
     // anything opens or lists a device.
     let _ = fastframe_audio::set_app_info(fastframe_audio::AppInfo {
-        name: "ZapFast".into(),
+        name: zapfast::DISPLAY_NAME.into(),
         icon: Some("zapfast".into()),
     });
     let settings = settings::Settings::load(&dirs.settings_file());
@@ -605,7 +605,11 @@ fn native_options(
     let default_size = demo_size_arg().unwrap_or([1180.0, 780.0]);
     let demo = demo_persistence.is_some();
     let viewport = egui::ViewportBuilder::default()
-        .with_title(if demo { "ZapFast Demo" } else { "ZapFast" })
+        .with_title(if demo {
+            "ZapFast Demo"
+        } else {
+            zapfast::DISPLAY_NAME
+        })
         .with_app_id(if demo {
             "zapfast-demo".to_owned()
         } else {

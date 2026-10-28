@@ -1,5 +1,12 @@
 //! ZapFast internals exposed for diagnostics and tests.
 
+/// The name shown to the user: the window title, the volume mixer, desktop
+/// notifications and the taskbar. The technical identity stays `zapfast`
+/// (the binary, the app id, the desktop entry, the single-instance slot, the
+/// keyring and the state folders), so a renamed display name never breaks a
+/// linked device or moves a file.
+pub const DISPLAY_NAME: &str = "WhatsApp";
+
 pub mod a11y;
 pub mod account;
 pub mod animation;

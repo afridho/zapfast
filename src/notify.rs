@@ -394,7 +394,7 @@ impl<T: std::io::Read + std::io::Seek + Send + Sync> ReadSeek for T {}
 /// ("Type a message").
 pub fn locked_lines(locale: crate::i18n::Locale) -> (String, String) {
     (
-        "ZapFast".to_owned(),
+        crate::DISPLAY_NAME.to_owned(),
         // Translators: the body of a notification that hides who wrote and
         // what: a message has arrived.
         crate::i18n::pgettext(locale, "notification", "New message").into_owned(),
@@ -449,7 +449,7 @@ fn deliver(
     };
     let client = match CLIENT.get_or_init(|| {
         Client::new(
-            App::new(notification_app_id(), "ZapFast")
+            App::new(notification_app_id(), crate::DISPLAY_NAME)
                 .desktop_entry("zapfast")
                 .icon("zapfast")
                 // ZapFast's green, the theme's accent, behind the logo on

@@ -1145,15 +1145,15 @@ fn tray_config(lockable: bool) -> fastframe_tray::Config {
     use fastframe_tray::MenuItem;
     fastframe_tray::Config {
         id: "zapfast",
-        title: "ZapFast".into(),
+        title: crate::DISPLAY_NAME.into(),
         icon: crate::util::app_icon_rgba,
         template_icon: Some(crate::util::tray_template_rgba),
         // The tray icon is the app icon, so hosts that draw only named icons
         // may use the installed one.
         themed_icon: true,
         menu: vec![
-            MenuItem::action(TRAY_SHOW, "Show or hide ZapFast"),
-            MenuItem::action(TRAY_LOCK, "Lock ZapFast").visible(lockable),
+            MenuItem::action(TRAY_SHOW, "Show or hide WhatsApp"),
+            MenuItem::action(TRAY_LOCK, "Lock WhatsApp").visible(lockable),
             MenuItem::Separator,
             MenuItem::action(TRAY_QUIT, "Quit"),
         ],
@@ -15999,8 +15999,8 @@ mod tests {
             assert_eq!(
                 super::tray_config(lockable).menu,
                 [
-                    fastframe_tray::MenuItem::action(super::TRAY_SHOW, "Show or hide ZapFast"),
-                    fastframe_tray::MenuItem::action(super::TRAY_LOCK, "Lock ZapFast")
+                    fastframe_tray::MenuItem::action(super::TRAY_SHOW, "Show or hide WhatsApp"),
+                    fastframe_tray::MenuItem::action(super::TRAY_LOCK, "Lock WhatsApp")
                         .visible(lockable),
                     fastframe_tray::MenuItem::Separator,
                     fastframe_tray::MenuItem::action(super::TRAY_QUIT, "Quit"),
@@ -23341,7 +23341,7 @@ mod app_lock_tests {
         app.lock_app();
         app.maybe_notify(CHAT, &message);
         let shown = app.notifications.shown.last().unwrap();
-        assert_eq!(shown.title, "ZapFast");
+        assert_eq!(shown.title, crate::DISPLAY_NAME);
         assert_eq!(shown.body, "New message");
         assert_eq!(shown.picture, None);
         assert_eq!(
@@ -23376,7 +23376,7 @@ mod app_lock_tests {
         app.settings.notification_content = false;
         app.maybe_notify(CHAT, &message);
         let shown = app.notifications.shown.last().unwrap().clone();
-        assert_eq!(shown.title, "ZapFast");
+        assert_eq!(shown.title, crate::DISPLAY_NAME);
         assert_eq!(shown.body, "New message");
         assert_eq!(shown.picture, None);
         assert_eq!(shown.sound, app.settings.message_sound);
