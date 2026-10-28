@@ -1007,6 +1007,23 @@ pub fn row_highlight(ui: &Ui, palette: &Palette, rect: Rect, color: Color32) {
     highlight_card(ui, palette, rect.shrink2(vec2(8.0, 2.0)), color);
 }
 
+/// Covers `rect` with a rounded redaction bar, hiding whatever was drawn
+/// under it for the blur-chats privacy setting. The bar is a muted pill in
+/// the surface colour, a shade lifted so it reads as a cover rather than
+/// empty space.
+pub fn redact(ui: &Ui, palette: &Palette, rect: Rect) {
+    if rect.width() <= 0.0 || rect.height() <= 0.0 {
+        return;
+    }
+    let radius = CornerRadius::same((rect.height() / 2.0).min(7.0) as u8);
+    let color = if palette.dark {
+        palette.surface_hover
+    } else {
+        palette.surface_active
+    };
+    ui.painter().rect_filled(rect, radius, color);
+}
+
 /// The card `row_highlight` paints, over `card` itself: the rail's lit and
 /// hovered plates look as the selected and hovered chat rows do.
 pub fn highlight_card(ui: &Ui, palette: &Palette, card: Rect, color: Color32) {

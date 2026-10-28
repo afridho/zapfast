@@ -451,6 +451,14 @@ fn sections(app: &App) -> Vec<Section> {
         keyed(translated(locale, "When off, Ctrl+Enter sends.")),
         |settings| &mut settings.enter_sends,
     );
+    chats.toggle(
+        translated(locale, "Blur chats for privacy"),
+        translated(
+            locale,
+            "Hides message previews and open chats until you point at them, so your screen can be read in company.",
+        ),
+        |settings| &mut settings.blur_chats,
+    );
     chats.account_toggle(
         translated(locale, "Download files automatically"),
         translated(

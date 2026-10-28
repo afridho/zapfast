@@ -1660,8 +1660,20 @@ fn row(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> egui::Response {
             widgets::line(ui, "", theme::regular(13.0), preview_color, 1.0, 1)
         };
         preview.paint(ui, pos2(x, line_y), preview_color);
+        // Privacy: hide the message preview unless the pointer is over the
+        // row, so the list can be read in company. Typing and draft markers,
+        // badges and the name stay; only the latest message is covered.
+        if app.settings.blur_chats && !response.hovered() && typing.is_empty() {
+            let bar = Rect::from_min_max(
+                pos2(left, line_y + 1.0),
+                pos2(badge_right.min(left + 180.0), line_y + 13.0),
+            );
+            widgets::redact(ui, &palette, bar);
+        }
     }
     let response = response.on_hover_cursor(egui::CursorIcon::PointingHand);
+    // The cut-short tooltip would reveal the hidden message, so it waits for
+    // the row's own hover, which already lifts the redaction.
     if let Some((area, prefix, full)) = full_preview {
         full_preview_tooltip(app, ui, &chat.id, area, &prefix, &full);
     }

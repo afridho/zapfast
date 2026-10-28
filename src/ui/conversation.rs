@@ -2237,6 +2237,9 @@ struct View<'a> {
     auto_download: bool,
     connected: bool,
     account_receipts_off: bool,
+    /// Redact message bodies until the pointer is over them, for the
+    /// blur-chats privacy setting.
+    blur: bool,
     poll_voting: &'a HashSet<(ChatId, String)>,
     interactive_pending: &'a HashSet<(ChatId, String)>,
     /// Whether this chat is selecting whole messages.
@@ -2610,6 +2613,7 @@ fn messages(app: &mut App, ui: &mut egui::Ui, chat: &Chat, under: f32) {
         auto_download: app.account().settings.auto_download,
         connected: app.link.is_connected(),
         account_receipts_off: app.account_receipts_off,
+        blur: app.settings.blur_chats,
         poll_voting: &app.poll_voting,
         interactive_pending: &app.interactive_sending,
         selecting: app
@@ -4307,6 +4311,16 @@ fn bubble(
             }
         },
     );
+    // Privacy: cover the bubble until the pointer is over its row, so the
+    // open chat can stay on screen in company. Covered as one bar over the
+    // bubble's area; hovering the row reveals it and keeps selection, links
+    // and media working as before.
+    if view.blur
+        && let Some(response) = &response
+        && !response.hovered()
+    {
+        widgets::redact(ui, &view.palette, response.rect.expand(1.0));
+    }
     response
 }
 
@@ -6144,6 +6158,7 @@ pub(crate) fn list_menu(
         voice_speed: app.voice_speed_in(Some(&chat.id)),
         video: &app.video,
         account_receipts_off: app.account_receipts_off,
+        blur: app.settings.blur_chats,
         copy_rows: Some(app.copy_rows.as_ref()),
         selecting: false,
         motion_playing: None,
@@ -11208,6 +11223,7 @@ mod tests {
             voice_speed: app.settings.voice_speed,
             video: &app.video,
             account_receipts_off: false,
+            blur: false,
             copy_rows: Some(app.copy_rows.as_ref()),
             selecting: false,
             motion_playing: None,

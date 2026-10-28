@@ -475,6 +475,10 @@ pub struct Settings {
     /// Download attachments when they enter view instead of on click.
     #[serde(alias = "auto_download_images")]
     pub auto_download: bool,
+    /// Redact message previews in the chat list and message bodies in the
+    /// open chat, revealing a row or bubble while the pointer is over it, so
+    /// the screen can be read in company without showing its contents.
+    pub blur_chats: bool,
     /// Show the default doodle wallpaper behind conversations.
     pub show_wallpaper: bool,
     /// Colour selected in the wallpaper picker.
@@ -591,6 +595,7 @@ impl Default for Settings {
             send_read_receipts: true,
             send_typing: true,
             auto_download: true,
+            blur_chats: false,
             show_wallpaper: true,
             wallpaper_color: WallpaperColor::Theme,
             dark_wallpaper_color: WallpaperColor::Theme,
@@ -1200,6 +1205,7 @@ mod tests {
         assert!(parsed.check_for_updates);
         assert!(!parsed.download_updates_automatically);
         assert!(parsed.show_wallpaper);
+        assert!(!parsed.blur_chats, "off by default");
         assert_eq!(parsed.wallpaper_color, WallpaperColor::Theme);
         assert!(parsed.pause_other_media);
         assert_eq!(parsed.window_width, None);

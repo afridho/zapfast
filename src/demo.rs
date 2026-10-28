@@ -3137,6 +3137,9 @@ pub fn apply_flags(app: &mut App, page: Option<&str>) {
             "light" => {
                 app.settings.theme = ThemeChoice::Light;
             }
+            "blur" => {
+                app.settings.blur_chats = true;
+            }
             "messages" => {
                 app.settings.theme = ThemeChoice::Messages;
             }
@@ -7578,6 +7581,8 @@ mod tests {
             "accounts-muted,light",
             "account-menu",
             "light",
+            "blur",
+            "blur,chat",
             "archived",
             "chat-search",
             "chat-search-day",
