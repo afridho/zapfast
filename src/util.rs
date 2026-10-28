@@ -715,14 +715,31 @@ const MARK: &[u8] = include_bytes!("../packaging/icons/zapfast.svg");
 const SMALL_MARK: &[u8] = include_bytes!("../packaging/icons/zapfast-small.svg");
 const SMALL_BELOW: usize = 40;
 
+/// Embedded PNG app logo for the window and tray icon.
+const APP_ICON_PNG: &[u8] = include_bytes!("../packaging/icons/app-icon.png");
+
 /// Rasterizes the logo to straight-alpha RGBA.
+///
+/// The window and tray icon use the embedded PNG, scaled to `size`; it falls
+/// back to the SVG mark, then an accent disc, if the PNG cannot be decoded.
 pub fn app_icon_rgba(size: usize) -> Vec<u8> {
+    if let Some(rgba) = render_png(APP_ICON_PNG, size) {
+        return rgba;
+    }
     let mark = if size < SMALL_BELOW { SMALL_MARK } else { MARK };
     match render_mark(mark, size) {
         Some(rgba) => rgba,
         // Fall back to an accent disc if the embedded SVG cannot render.
         None => plain_disc(size),
     }
+}
+
+/// Decodes `png` and scales it to `size`×`size` straight-alpha RGBA.
+fn render_png(png: &[u8], size: usize) -> Option<Vec<u8>> {
+    let side = size.max(1) as u32;
+    let image = image::load_from_memory_with_format(png, image::ImageFormat::Png).ok()?;
+    let scaled = image.resize_exact(side, side, image::imageops::FilterType::Lanczos3);
+    Some(scaled.to_rgba8().into_raw())
 }
 
 fn render_mark(mark: &[u8], size: usize) -> Option<Vec<u8>> {

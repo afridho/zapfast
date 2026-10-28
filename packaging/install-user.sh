@@ -36,6 +36,7 @@ bin_dir="$prefix/bin"
 apps_dir="$data_dir/applications"
 icons_root="$data_dir/icons/hicolor"
 icons_dir="$icons_root/scalable/apps"
+png_icons_dir="$icons_root/512x512/apps"
 
 if [[ ! -x "$binary" ]]; then
   echo "No built binary at $binary; build it first: cargo build --release --locked" >&2
@@ -51,7 +52,10 @@ install -Dm755 "$binary" "$installed"
 # the launcher stops finding nothing. install -Dm644 also fixes a copy left
 # unreadable by a strict umask (mode 600), which hides the icon too.
 rm -f "$data_dir/icons/zapfast.svg"
-install -Dm644 "$here/icons/zapfast.svg" "$icons_dir/zapfast.svg"
+# A custom PNG app icon takes precedence: install it at a fixed size and
+# remove the scalable SVG so the launcher shows the PNG, not the old mark.
+install -Dm644 "$here/icons/app-icon.png" "$png_icons_dir/zapfast.png"
+rm -f "$icons_dir/zapfast.svg"
 mkdir -p "$apps_dir"
 # The lines that change: `Exec=zapfast`, and the actions' `Exec=zapfast <verb>`,
 # name the path just installed, so the entry works whether or not ~/.local/bin
@@ -101,16 +105,19 @@ if command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database "$apps_dir" 2>/dev/null || true
 fi
 # Refresh the hicolor icon cache so the new icon shows without a relogin. The
-# cache is only built where an index.theme names the directories, which a user
-# hicolor tree often lacks, so write a minimal one first. Both steps are
-# best-effort: a desktop that reads the SVG directly needs neither.
+# cache is only built where an index.theme names the directories, and a user
+# hicolor tree often names only scalable/apps, so the 512x512 PNG icon would
+# be ignored. Write an index.theme that registers the PNG directory when one
+# is missing or does not list it. Both steps are best-effort: a desktop that
+# reads the icon directly needs neither.
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
-  if [[ ! -f "$icons_root/index.theme" ]]; then
+  if [[ ! -f "$icons_root/index.theme" ]] \
+    || ! grep -q "512x512/apps" "$icons_root/index.theme"; then
     cat > "$icons_root/index.theme" <<'THEME'
 [Icon Theme]
 Name=Hicolor
 Comment=Fallback icon theme
-Directories=scalable/apps
+Directories=scalable/apps,512x512/apps
 
 [scalable/apps]
 Size=128
@@ -118,6 +125,11 @@ MinSize=16
 MaxSize=512
 Context=Applications
 Type=Scalable
+
+[512x512/apps]
+Size=512
+Context=Applications
+Type=Threshold
 THEME
     chmod 644 "$icons_root/index.theme"
   fi
