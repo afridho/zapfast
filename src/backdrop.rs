@@ -37,6 +37,11 @@ pub fn transparent_window(messages: bool, see_through: bool) -> bool {
 /// to a colour with alpha. Set by `main` as each window is made.
 static WINDOW_TRANSPARENT: AtomicBool = AtomicBool::new(false);
 
+/// Whether the window on screen was made transparent.
+pub fn window_transparent() -> bool {
+    WINDOW_TRANSPARENT.load(Ordering::Relaxed)
+}
+
 /// Records whether the window just made is transparent.
 pub fn set_window_transparent(transparent: bool) {
     WINDOW_TRANSPARENT.store(transparent, Ordering::Relaxed);

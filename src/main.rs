@@ -441,7 +441,7 @@ fn run() -> eframe::Result<()> {
                     app.settings.theme == zapfast::settings::ThemeChoice::Messages,
                     app.palette.window.a() < 255,
                 )
-            });
+            }) || zapfast::ui::window_controls::rounds_corners();
             zapfast::backdrop::set_window_transparent(transparent);
             let geometry = if demo_persistence.is_some() {
                 fastframe_shell::window::Geometry::default()

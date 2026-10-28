@@ -185,6 +185,76 @@ pub fn active(ctx: &egui::Context) -> bool {
     cfg!(target_os = "linux") && fastframe_titlebar::visible(ctx)
 }
 
+/// Corner radius of the frameless window, in points: GNOME's rounded-corner
+/// and liquid-glass extensions round windows by 20 by default.
+pub const CORNER_RADIUS: f32 = 20.0;
+
+/// Whether the frameless Linux window gets a transparent surface so its
+/// corners can be cut round. Without one a compositor that rounds windows
+/// (GNOME's rounded-corner or liquid-glass extensions) still shows the square
+/// surface behind its rounded glass.
+pub fn rounds_corners() -> bool {
+    cfg!(target_os = "linux") && fastframe_titlebar::enabled()
+}
+
+/// How far in from the side the round corner starts on pixel row `row`
+/// (0 at the corner's outer edge) for a radius of `radius` pixels.
+fn corner_inset(radius: f32, row: u32) -> u32 {
+    let dy = radius - (row as f32 + 0.5);
+    let inside = (radius * radius - dy * dy).max(0.0).sqrt();
+    (radius - inside).round().max(0.0) as u32
+}
+
+/// Clears the window's four corners to transparent, round, after everything
+/// else has painted, so the desktop shows through them. Does nothing on an
+/// opaque window, or when the window fills the screen.
+pub fn cut_corners(ctx: &egui::Context) {
+    if !rounds_corners()
+        || !crate::backdrop::window_transparent()
+        || ctx.input(|i| i.viewport().fullscreen.unwrap_or(false))
+    {
+        return;
+    }
+    let rect = ctx.content_rect();
+    let layer = egui::LayerId::new(egui::Order::Debug, egui::Id::new("zapfast-round-corners"));
+    let callback = eframe::egui_glow::CallbackFn::new(|info, painter| {
+        use eframe::glow::HasContext as _;
+        let [width, height] = info.screen_size_px;
+        let radius = (CORNER_RADIUS * info.pixels_per_point).round();
+        let rows = (radius as u32).min(height / 2);
+        let gl = painter.gl();
+        // SAFETY: called by egui_glow on the thread owning its context,
+        // with the window's framebuffer bound; egui restores its state after.
+        unsafe {
+            gl.enable(eframe::glow::SCISSOR_TEST);
+            gl.color_mask(true, true, true, true);
+            gl.clear_color(0.0, 0.0, 0.0, 0.0);
+            for row in 0..rows {
+                let inset = corner_inset(radius, row).min(width / 2);
+                if inset == 0 {
+                    continue;
+                }
+                let (inset, row) = (inset as i32, row as i32);
+                let (w, h) = (width as i32, height as i32);
+                // GL counts rows from the bottom.
+                for (x, y) in [
+                    (0, h - 1 - row),
+                    (w - inset, h - 1 - row),
+                    (0, row),
+                    (w - inset, row),
+                ] {
+                    gl.scissor(x, y, inset, 1);
+                    gl.clear(eframe::glow::COLOR_BUFFER_BIT);
+                }
+            }
+        }
+    });
+    ctx.layer_painter(layer).add(egui::PaintCallback {
+        rect,
+        callback: std::sync::Arc::new(callback),
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

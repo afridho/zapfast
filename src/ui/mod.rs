@@ -881,6 +881,7 @@ fn window_chrome(app: &App, ui: &mut egui::Ui) {
     if !fastframe_titlebar::enabled() {
         return;
     }
+    window_controls::cut_corners(ui.ctx());
     let palette = app.palette;
     let style = fastframe_titlebar::Style {
         // GNOME's round buttons carry the text colour on the hover surface;
