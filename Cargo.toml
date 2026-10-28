@@ -252,7 +252,7 @@ epaint_default_fonts = { git = "https://github.com/crmne/egui", rev = "6ce633ba5
 # windows close when its loop exits, preserving the macOS tray across hide
 # and recreation (rust-windowing/winit#4754, crmne/winit#2), and a first
 # window opens after the headless AppKit loop has already launched (#4770).
-winit = { git = "https://github.com/crmne/winit", rev = "0bed9dc0a7db02590a279fb8bac795fa39ee6948" }
+winit = { git = "https://github.com/afridho/winit", rev = "8e77206e" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus-secret-service-keyring-store = { version = "1.0.1", features = ["rt-tokio-crypto-rust"] }
