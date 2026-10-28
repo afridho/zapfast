@@ -34,7 +34,8 @@ else
 fi
 bin_dir="$prefix/bin"
 apps_dir="$data_dir/applications"
-icons_dir="$data_dir/icons/hicolor/scalable/apps"
+icons_root="$data_dir/icons/hicolor"
+icons_dir="$icons_root/scalable/apps"
 
 if [[ ! -x "$binary" ]]; then
   echo "No built binary at $binary; build it first: cargo build --release --locked" >&2
@@ -42,7 +43,14 @@ if [[ ! -x "$binary" ]]; then
 fi
 
 installed="$bin_dir/zapfast"
+# install overwrites an existing copy, so re-running this script replaces the
+# binary, icon and launcher entry in place.
 install -Dm755 "$binary" "$installed"
+# A theme reads the icon by name from hicolor/scalable/apps. An earlier install
+# left a copy at the icons directory's root, where no theme looks: remove it so
+# the launcher stops finding nothing. install -Dm644 also fixes a copy left
+# unreadable by a strict umask (mode 600), which hides the icon too.
+rm -f "$data_dir/icons/zapfast.svg"
 install -Dm644 "$here/icons/zapfast.svg" "$icons_dir/zapfast.svg"
 mkdir -p "$apps_dir"
 # The lines that change: `Exec=zapfast`, and the actions' `Exec=zapfast <verb>`,
@@ -91,6 +99,29 @@ if command -v desktop-file-validate >/dev/null 2>&1 && [[ "$installed" != *\\* ]
 fi
 if command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database "$apps_dir" 2>/dev/null || true
+fi
+# Refresh the hicolor icon cache so the new icon shows without a relogin. The
+# cache is only built where an index.theme names the directories, which a user
+# hicolor tree often lacks, so write a minimal one first. Both steps are
+# best-effort: a desktop that reads the SVG directly needs neither.
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+  if [[ ! -f "$icons_root/index.theme" ]]; then
+    cat > "$icons_root/index.theme" <<'THEME'
+[Icon Theme]
+Name=Hicolor
+Comment=Fallback icon theme
+Directories=scalable/apps
+
+[scalable/apps]
+Size=128
+MinSize=16
+MaxSize=512
+Context=Applications
+Type=Scalable
+THEME
+    chmod 644 "$icons_root/index.theme"
+  fi
+  gtk-update-icon-cache -f -t "$icons_root" >/dev/null 2>&1 || true
 fi
 
 echo "Installed $installed"

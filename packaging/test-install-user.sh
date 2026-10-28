@@ -86,4 +86,21 @@ grep -qxF "Exec=\"$work/relative/bin/zapfast\" %U" "$work/relative/share/applica
   exit 1
 }
 
+# Re-running replaces an existing install in place, and clears an icon left at
+# the icons directory's root by an earlier version.
+reinstall="$work/reinstall"
+mkdir -p "$reinstall/share/icons"
+printf 'stale\n' > "$reinstall/share/icons/zapfast.svg"
+bash "$script_dir/install-user.sh" "$fake" "$reinstall" >/dev/null
+bash "$script_dir/install-user.sh" "$fake" "$reinstall" >/dev/null
+test -s "$reinstall/share/icons/hicolor/scalable/apps/zapfast.svg"
+test ! -e "$reinstall/share/icons/zapfast.svg" || {
+  echo "a stale root-level icon was left behind" >&2
+  exit 1
+}
+# The installed icon is world-readable, so a launcher run under a strict umask
+# can still read it.
+perms=$(stat -c '%a' "$reinstall/share/icons/hicolor/scalable/apps/zapfast.svg")
+[[ "$perms" == 644 ]] || { echo "icon mode is $perms, expected 644" >&2; exit 1; }
+
 echo "install-user.sh wrote a valid, escaped launcher entry for every prefix."
