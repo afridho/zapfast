@@ -359,3 +359,22 @@ with the options listed at the top of `examples/aec_replay.rs`).
 Nothing is written without the variable. The files are both people's voices,
 so only set it for a call whose other side agreed, and delete the files when
 you are done.
+
+## Chat exports
+
+Choose **Export chat** from a conversation's menu, or right-click a chat in the
+list, to save all of its locally stored messages as a UTF-8 text file.
+**Include downloaded attachments (ZIP)** adds the existing files and `_chat.txt`
+to one ZIP. The text uses UTC timestamps and preserves multiline messages and
+captions. Missing attachments are listed as unavailable; this never downloads
+files or requests older history from the phone.
+
+The export is saved without a prompt to your download folder (Settings, else
+your system Downloads folder), named after the chat, with a number added when a
+file of that name is already there, so it never overwrites an earlier export.
+A toast reports the saved file's full path.
+
+Exports are unencrypted. Locked chats cannot be exported. Cancel stops the job;
+locking the app, clearing/deleting the chat or unlinking the account also cancels
+it. A cancelled or failed export removes its partial files and preserves an
+existing destination.

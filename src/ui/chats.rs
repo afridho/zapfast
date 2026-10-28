@@ -2169,6 +2169,21 @@ fn context_menu(app: &mut App, ui: &mut egui::Ui, chat: &Chat, palette: &Palette
         app.actions.push(Action::OpenChat(chat.id.clone()));
         app.actions.push(Action::OpenInfo(chat.id.clone()));
     }
+    // Export reads the local archive only, so it needs no connection; a
+    // locked chat or an export already running disables it, as in the
+    // chat header's menu.
+    if widgets::menu_item_enabled(
+        ui,
+        palette,
+        Some(Icon::Download),
+        &crate::i18n::gettext(locale, "Export chat"),
+        !chat.locked && app.chat_export.is_none(),
+    ) {
+        app.actions.push(Action::ShowDialog(Dialog::ExportChat {
+            chat: chat.id.clone(),
+            include_media: false,
+        }));
+    }
     // Clearing and deleting reach the phone, so both wait for a connection.
     let connected = app.is_connected();
     if widgets::menu_item_enabled(
