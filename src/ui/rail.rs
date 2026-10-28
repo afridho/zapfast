@@ -186,7 +186,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, hidden: bool) {
         .into_iter()
         .filter(|destination| destination.offered(app))
         .collect();
-        let foot = bottom.len() as f32 * (PLATE + GAP) + GAP + AVATAR + GAP;
+        // One extra plate for the Blur chats toggle above the bottom group.
+        let foot = (bottom.len() + 1) as f32 * (PLATE + GAP) + GAP + AVATAR + GAP;
         let minimum = 2.0 * CELL
             + foot
             + if hidden {
@@ -230,6 +231,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, hidden: bool) {
                 }
                 let rest = (ui.available_height() - foot).max(0.0);
                 ui.add_space(rest);
+                ui.add_space(GAP);
+                blur_toggle(app, ui, &palette);
                 for destination in bottom {
                     ui.add_space(GAP);
                     destination_button(app, ui, &palette, destination, PLATE);
@@ -270,6 +273,69 @@ fn show_list_button(app: &mut App, ui: &mut egui::Ui, palette: &Palette) {
             }
         },
     );
+}
+
+/// Stable id of the Blur chats toggle, for tests and the demo.
+pub fn blur_toggle_id() -> egui::Id {
+    egui::Id::new("nav-rail-blur-toggle")
+}
+
+/// The Blur chats for privacy toggle, a plate in the bottom group above
+/// Starred: an open eye when off, a struck-through eye when on, lit while
+/// blurring. It flips the same setting as Settings > Chats.
+fn blur_toggle(app: &mut App, ui: &mut egui::Ui, palette: &Palette) {
+    let on = app.settings.blur_chats;
+    let icon = if on { Icon::EyeOff } else { Icon::Eye };
+    let label = gettext(
+        app.locale,
+        if on {
+            "Stop blurring chats for privacy"
+        } else {
+            "Blur chats for privacy"
+        },
+    )
+    .into_owned();
+    let (cell, _) = ui.allocate_exact_size(vec2(ui.available_width(), PLATE), Sense::hover());
+    let plate = Rect::from_center_size(cell.center(), Vec2::splat(PLATE));
+    let response = ui
+        .interact(plate, blur_toggle_id(), Sense::click())
+        .on_hover_cursor(egui::CursorIcon::PointingHand);
+    theme::reveal_focus(&response);
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(
+            egui::WidgetType::SelectableLabel,
+            ui.is_enabled(),
+            on,
+            label.as_str(),
+        )
+    });
+    if ui.is_rect_visible(plate) {
+        let hovered = response.hovered() || response.has_focus();
+        if on {
+            widgets::highlight_card(ui, palette, plate, palette.surface_active);
+        } else if hovered {
+            widgets::highlight_card(ui, palette, plate, palette.surface_hover);
+        }
+        let tint = if on || hovered {
+            palette.text
+        } else {
+            palette.secondary
+        };
+        let scale = if response.is_pointer_button_down_on() {
+            0.92
+        } else {
+            1.0
+        };
+        theme::paint_icon(ui, icon, plate, ICON * scale, tint);
+    }
+    if response
+        .on_hover_text(label)
+        .tab_stop(Stop::BlurChats)
+        .clicked()
+    {
+        app.settings.blur_chats = !on;
+        app.actions.push(Action::SettingsChanged);
+    }
 }
 
 /// One destination: its icon on a rounded plate, lit as the selected chat

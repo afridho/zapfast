@@ -14346,7 +14346,15 @@ mod tests {
             .filter(|node| node.label() == Some("Mute notifications"))
             .map(|node| node.toggled() == Some(egui::accesskit::Toggled::True))
             .collect();
-        assert_eq!(bells, [false, true], "one bell per account, the second on");
+        // One bell per account, one of them on. The accessibility tree
+        // collects nodes by id, not in row order, so count rather than
+        // compare positions; the muted row is identified by name below.
+        assert_eq!(bells.len(), 2, "one bell per account");
+        assert_eq!(
+            bells.iter().filter(|on| **on).count(),
+            1,
+            "one account is muted"
+        );
         // Only the muted account's row says so, not the one on screen.
         let said: Vec<_> = nodes
             .iter()
@@ -19170,6 +19178,7 @@ mod tests {
                 Stop::Messages,
                 Stop::Chats,
                 Stop::Calls,
+                Stop::BlurChats,
                 Stop::Starred,
                 Stop::Archived,
                 Stop::Locked,
@@ -19287,6 +19296,7 @@ mod tests {
                         Stop::Messages,
                         Stop::Chats,
                         Stop::Calls,
+                        Stop::BlurChats,
                         Stop::Starred,
                         Stop::Archived,
                         Stop::Locked,
