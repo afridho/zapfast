@@ -24,6 +24,11 @@ const THUMB: f32 = 56.0;
 const STRIP_GAP: f32 = 6.0;
 const STRIP_PAD: f32 = 4.0;
 
+/// The viewer's `Modal`, the layer it is drawn on.
+pub(crate) fn modal_id() -> egui::Id {
+    egui::Id::new("image-preview")
+}
+
 /// Draws the open viewer for this frame: the header, the stage with the
 /// picture or clip, the album strip along the bottom, and the clicks that
 /// move between items or close it.
@@ -63,10 +68,10 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
     // cannot reach the chat behind it. The field and every control over it come
     // from the palette, so the light theme reads as well as the dark one.
     let screen = ctx.content_rect();
-    let area = egui::Area::new(egui::Id::new("image-preview"))
+    let area = egui::Area::new(modal_id())
         .order(egui::Order::Foreground)
         .fixed_pos(screen.min);
-    let response = egui::Modal::new(egui::Id::new("image-preview"))
+    let response = egui::Modal::new(modal_id())
         .area(area)
         .frame(egui::Frame::new().fill(palette.overlay))
         .backdrop_color(palette.shadow)
@@ -78,8 +83,9 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
             ui.painter().rect_filled(window, 0.0, palette.overlay);
             // Claimed first, so every control drawn over it wins the click.
             // What reaches this is a click on the empty field, which closes the
-            // viewer, as it does on the phone.
-            let (_, backdrop) = ui.allocate_exact_size(window.size(), Sense::click());
+            // viewer, as it does on the phone. It only takes clicks: focusable,
+            // it would be a nameless first stop, before Close.
+            let (_, backdrop) = ui.allocate_exact_size(window.size(), Sense::CLICK);
             let (header_rect, stage, strip_rect) = panes(window, strip);
 
             // Inset from the window's edges, so the title does not touch the
@@ -410,6 +416,7 @@ fn header(
                         chat: chat.to_owned(),
                         message: message.clone(),
                         beside_menu: false,
+                        from_list: false,
                     });
                 }
                 if theme::icon_button(
@@ -1283,14 +1290,17 @@ pub fn show_sticker(app: &mut App, ctx: &egui::Context) {
         .corner_radius(CornerRadius::same(theme::RADIUS + 4))
         .inner_margin(Margin::same(20))
         .shadow(palette.modal_shadow());
-    let response = egui::Modal::new(egui::Id::new("sticker-preview"))
+    let response = egui::Modal::new(sticker_modal_id())
         .frame(card)
         .backdrop_color(palette.shadow)
         .show(ctx, |ui| {
             ui.set_width(side);
             ui.vertical_centered(|ui| {
+                // A click on the sticker closes the card, as Escape does. It
+                // only takes clicks: focusable, it would be a nameless first
+                // stop, before the favorite button.
                 let (rect, response) =
-                    ui.allocate_exact_size(Vec2::splat(side), egui::Sense::click());
+                    ui.allocate_exact_size(Vec2::splat(side), egui::Sense::CLICK);
                 paint_sticker(ui, &preview, rect, &palette);
                 if response
                     .on_hover_cursor(egui::CursorIcon::PointingHand)
@@ -1323,6 +1333,11 @@ pub fn show_sticker(app: &mut App, ctx: &egui::Context) {
     if response.should_close() {
         app.actions.push(Action::CloseStickerPreview);
     }
+}
+
+/// The sticker view's `Modal`, the layer it is drawn on.
+pub(crate) fn sticker_modal_id() -> egui::Id {
+    egui::Id::new("sticker-preview")
 }
 
 /// Where the sticker preview's favorite button was drawn, for tests.
