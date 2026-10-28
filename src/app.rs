@@ -6170,9 +6170,19 @@ impl App {
 
     pub fn load_custom_themes(&mut self) {
         let waker = self.waker.clone();
+        // Read every chosen filename first, so a large themes folder cannot
+        // push the explicit theme or the Follow-system light and dark choices
+        // out of the listing.
+        let selected = [
+            self.settings.custom_theme.clone(),
+            self.settings.system_light_theme.clone(),
+            self.settings.system_dark_theme.clone(),
+        ]
+        .into_iter()
+        .flatten();
         self.custom_themes.start(
             self.dirs.config.join("themes"),
-            self.settings.custom_theme.clone(),
+            selected,
             &fastframe_theme::Waker::new(move || waker.wake()),
         );
     }
@@ -6206,6 +6216,41 @@ impl App {
             }
         } else if self.settings.system_theme_cache.take().is_some() {
             changed = true;
+        }
+        // The palettes chosen for the light and dark system appearances,
+        // cached the same way so the choice survives a slow scan or a missing
+        // file. A selection the catalogue no longer lists keeps its last cache.
+        let light = self
+            .settings
+            .system_light_theme
+            .as_ref()
+            .map(|filename| self.custom_themes.find(filename).cloned());
+        let dark = self
+            .settings
+            .system_dark_theme
+            .as_ref()
+            .map(|filename| self.custom_themes.find(filename).cloned());
+        for (resolved, cache) in [
+            (light, &mut self.settings.system_light_theme_cache),
+            (dark, &mut self.settings.system_dark_theme_cache),
+        ] {
+            match resolved {
+                // Selected and listed: refresh the cache when it differs.
+                Some(Some(theme)) => {
+                    if cache.as_ref() != Some(&theme) {
+                        *cache = Some(theme);
+                        changed = true;
+                    }
+                }
+                // Selected but not listed yet: keep the last usable cache.
+                Some(None) => {}
+                // Not selected: clear any cache left from an earlier choice.
+                None => {
+                    if cache.take().is_some() {
+                        changed = true;
+                    }
+                }
+            }
         }
         if changed {
             self.mark_settings_dirty();
@@ -6261,19 +6306,25 @@ impl App {
                     == egui::Theme::Dark
             }
         };
-        let palette = self.settings.cached_palette().unwrap_or_else(|| {
-            if self.settings.theme == ThemeChoice::Messages {
-                if dark {
-                    Palette::messages()
+        let palette = self
+            .settings
+            .cached_palette()
+            // Follow system with a palette chosen for this appearance: the
+            // light one in light mode, the dark one in dark mode.
+            .or_else(|| self.settings.system_mode_palette(dark))
+            .unwrap_or_else(|| {
+                if self.settings.theme == ThemeChoice::Messages {
+                    if dark {
+                        Palette::messages()
+                    } else {
+                        Palette::messages_light()
+                    }
+                } else if dark {
+                    Palette::dark()
                 } else {
-                    Palette::messages_light()
+                    Palette::light()
                 }
-            } else if dark {
-                Palette::dark()
-            } else {
-                Palette::light()
-            }
-        });
+            });
         if crate::theme::apply_text_rendering_change(ctx) {
             self.applied_dark = None;
         }
@@ -8511,6 +8562,27 @@ impl App {
                 if let Some(theme) = self.custom_themes.find(&filename) {
                     self.settings.custom_theme_cache = Some(theme.clone());
                     self.settings.custom_theme = Some(filename);
+                    self.mark_settings_dirty();
+                    self.apply_theme(ctx);
+                }
+            }
+            Action::SetSystemModeTheme { dark, filename } => {
+                // A filename only applies once it is in the catalogue; clearing
+                // it always works and restores the built-in palette.
+                let theme = filename
+                    .as_deref()
+                    .and_then(|filename| self.custom_themes.find(filename))
+                    .cloned();
+                if filename.is_some() && theme.is_none() {
+                    // Not listed (yet): leave the current choice unchanged.
+                } else {
+                    if dark {
+                        self.settings.system_dark_theme = filename;
+                        self.settings.system_dark_theme_cache = theme;
+                    } else {
+                        self.settings.system_light_theme = filename;
+                        self.settings.system_light_theme_cache = theme;
+                    }
                     self.mark_settings_dirty();
                     self.apply_theme(ctx);
                 }

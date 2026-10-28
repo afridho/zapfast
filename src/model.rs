@@ -3030,6 +3030,13 @@ pub enum Action {
     SetCustomTitlebar(bool),
     SetInterfaceLanguage(Option<crate::i18n::Locale>),
     SetCustomTheme(String),
+    /// While Follow system is on, the palette to use in the light (`false`)
+    /// or dark (`true`) appearance, by filename; `None` restores the built-in
+    /// light or dark palette.
+    SetSystemModeTheme {
+        dark: bool,
+        filename: Option<String>,
+    },
     SetWallpaperColor(crate::settings::WallpaperColor),
     SetWallpaperDoodles(bool),
     /// Asks for an image to use as the chat wallpaper.

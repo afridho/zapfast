@@ -353,6 +353,24 @@ fn sections(app: &App) -> Vec<Section> {
         Text::default()
     };
     appearance.row(translated(locale, "Theme"), detail, theme_picker);
+    // While Follow system is on (and no single theme is forced), the palette
+    // for each appearance can be chosen. Omarchy supplies the system palette
+    // itself, so the choices are not offered then.
+    if app.settings.custom_theme.is_none()
+        && app.settings.theme == crate::settings::ThemeChoice::System
+        && !app.custom_themes.follows_omarchy()
+    {
+        appearance.row(
+            translated(locale, "Light theme"),
+            translated(locale, "Used while your system is in light mode."),
+            |ui, app| system_mode_theme_picker(ui, app, false),
+        );
+        appearance.row(
+            translated(locale, "Dark theme"),
+            translated(locale, "Used while your system is in dark mode."),
+            |ui, app| system_mode_theme_picker(ui, app, true),
+        );
+    }
     appearance.row(
         translated(locale, "Font"),
         translated(
@@ -1149,6 +1167,87 @@ fn theme_picker(ui: &mut egui::Ui, app: &mut App) {
         {
             app.actions.push(Action::OpenUrl(THEMES_GUIDE.to_owned()));
         }
+    });
+}
+
+/// The palette used in one system appearance under Follow system. `dark`
+/// picks the dark-mode choice, else the light-mode one. The first option
+/// restores the built-in palette; the rest are the catalogue's palettes.
+fn system_mode_theme_picker(ui: &mut egui::Ui, app: &mut App, dark: bool) {
+    let palette = app.palette;
+    let chosen = if dark {
+        app.settings.system_dark_theme.as_deref()
+    } else {
+        app.settings.system_light_theme.as_deref()
+    };
+    let default_label = crate::i18n::gettext(app.locale, "Default");
+    let selected = chosen
+        .map(fastframe_theme::display_name)
+        .map(str::to_owned)
+        .unwrap_or_else(|| default_label.clone().into_owned());
+    let id = if dark {
+        "appearance_system_dark"
+    } else {
+        "appearance_system_light"
+    };
+    ui.with_layout(egui::Layout::top_down(egui::Align::Max), |ui| {
+        let response = egui::ComboBox::from_id_salt(id)
+            .selected_text(" ")
+            .width(200.0_f32.min(ui.available_width()))
+            .height(320.0)
+            .show_ui(ui, |ui| {
+                if theme_option(ui, &palette, &default_label, chosen.is_none()) {
+                    app.actions.push(Action::SetSystemModeTheme {
+                        dark,
+                        filename: None,
+                    });
+                }
+                if app.custom_themes.picker_themes().next().is_some() {
+                    ui.separator();
+                }
+                for custom in app.custom_themes.picker_themes() {
+                    if theme_option(
+                        ui,
+                        &palette,
+                        fastframe_theme::display_name(&custom.filename),
+                        chosen == Some(custom.filename.as_str()),
+                    ) {
+                        app.actions.push(Action::SetSystemModeTheme {
+                            dark,
+                            filename: Some(custom.filename.clone()),
+                        });
+                    }
+                }
+            });
+        theme::reveal_focus(&response.response);
+        let rect = response.response.rect;
+        let text = widgets::line(
+            ui,
+            &selected,
+            theme::regular(14.0),
+            palette.text,
+            rect.width() - 36.0,
+            1,
+        );
+        text.paint(
+            ui,
+            egui::pos2(rect.left() + 8.0, rect.center().y - text.size().y / 2.0),
+            palette.text,
+        );
+        let label = if dark {
+            crate::i18n::gettext(app.locale, "Dark theme")
+        } else {
+            crate::i18n::gettext(app.locale, "Light theme")
+        };
+        response.response.widget_info(|| {
+            let mut info = egui::WidgetInfo::labeled(
+                egui::WidgetType::ComboBox,
+                ui.is_enabled(),
+                label.clone(),
+            );
+            info.current_text_value = Some(selected.clone());
+            info
+        });
     });
 }
 

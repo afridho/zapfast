@@ -129,6 +129,12 @@ name or description, in the interface language or in English.
   contrast, and in a window opened before choosing it on Windows or Linux,
   the window is opaque in the theme's colours; it turns translucent from
   the next window.
+- **Light theme** and **Dark theme**: shown only under **Follow system**,
+  these pick which palette each system appearance uses. Leave them on
+  **Default** for the built-in light and dark palettes, or choose any palette
+  from the themes folder so, for example, your system switching to dark also
+  switches ZapFast to a dark palette of your choice. On Omarchy, where Follow
+  system already uses your desktop's colours, they are not shown.
 - **Wallpaper**: WhatsApp's light and dark chat wallpaper colours, with or
   without doodles.
 - **Zoom**: interface scale, also `Ctrl+Plus`, `Ctrl+Minus` and `Ctrl+0`.

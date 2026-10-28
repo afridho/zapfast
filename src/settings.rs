@@ -439,6 +439,25 @@ pub struct Settings {
         skip_serializing_if = "Option::is_none"
     )]
     pub system_theme_cache: Option<crate::theme::CustomTheme>,
+    /// While `theme` is Follow system, the custom palette to use in the light
+    /// and dark appearance, by filename. `None` keeps the built-in light or
+    /// dark palette, so an untouched install is unchanged.
+    pub system_light_theme: Option<String>,
+    pub system_dark_theme: Option<String>,
+    /// The last usable copy of each, so the chosen palette survives a missing
+    /// file or a slow scan, as [`Self::custom_theme_cache`] does.
+    #[serde(
+        default,
+        deserialize_with = "fastframe_theme::read_cached_theme",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub system_light_theme_cache: Option<crate::theme::CustomTheme>,
+    #[serde(
+        default,
+        deserialize_with = "fastframe_theme::read_cached_theme",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub system_dark_theme_cache: Option<crate::theme::CustomTheme>,
     /// egui zoom factor.
     pub zoom: f32,
     pub sidebar_width: f32,
@@ -560,6 +579,10 @@ impl Default for Settings {
             custom_theme: None,
             custom_theme_cache: None,
             system_theme_cache: None,
+            system_light_theme: None,
+            system_dark_theme: None,
+            system_light_theme_cache: None,
+            system_dark_theme_cache: None,
             zoom: 1.0,
             sidebar_width: 300.0,
             search_pane_width: 380.0,
@@ -635,6 +658,11 @@ impl Settings {
         self.wallpaper_color_for(palette.dark).color32(palette)
     }
 
+    /// The palette whose dark flag decides egui's light-or-dark preference,
+    /// before the system's appearance is known: an explicit custom theme, or
+    /// the live Omarchy palette while following the system. A manual
+    /// light/dark choice ([`Self::system_mode_palette`]) is not here, because
+    /// which one applies depends on the system's appearance.
     pub(crate) fn cached_palette(&self) -> Option<crate::theme::Palette> {
         let theme = if self.custom_theme.is_some() {
             self.custom_theme_cache.as_ref()
@@ -644,6 +672,22 @@ impl Settings {
             None
         };
         theme.map(|theme| theme.palette)
+    }
+
+    /// While Follow system is on and no explicit custom theme is set, the
+    /// palette the user picked for the `dark` or light appearance, if any.
+    /// This is applied after the system's appearance is resolved, so the
+    /// right one of the two is chosen each time the appearance changes.
+    pub(crate) fn system_mode_palette(&self, dark: bool) -> Option<crate::theme::Palette> {
+        if self.custom_theme.is_some() || self.theme != ThemeChoice::System {
+            return None;
+        }
+        let cache = if dark {
+            self.system_dark_theme_cache.as_ref()
+        } else {
+            self.system_light_theme_cache.as_ref()
+        };
+        cache.map(|theme| theme.palette)
     }
 
     /// Returns the user key, built-in key, or `None`.
@@ -1034,6 +1078,79 @@ mod tests {
         assert_eq!(chosen.font, FontChoice::Inter);
         let saved = serde_json::to_value(&chosen).unwrap();
         assert_eq!(saved["font"], "inter");
+    }
+
+    /// Follow system can carry a chosen palette for each appearance; the
+    /// cached copy is read for whichever appearance is current, and only
+    /// while Follow system is on without an explicit custom theme.
+    #[test]
+    fn follow_system_uses_the_chosen_palette_per_appearance() {
+        use crate::theme::{CustomTheme, Palette};
+        let light_cache = CustomTheme {
+            filename: "Light.json".into(),
+            palette: Palette::light(),
+        };
+        let dark_cache = CustomTheme {
+            filename: "Dark.json".into(),
+            palette: Palette::dark(),
+        };
+        let mut settings = Settings {
+            theme: ThemeChoice::System,
+            system_light_theme: Some("Light.json".into()),
+            system_dark_theme: Some("Dark.json".into()),
+            system_light_theme_cache: Some(light_cache.clone()),
+            system_dark_theme_cache: Some(dark_cache.clone()),
+            ..Settings::default()
+        };
+        assert_eq!(settings.system_mode_palette(false), Some(Palette::light()));
+        assert_eq!(settings.system_mode_palette(true), Some(Palette::dark()));
+        // The single-palette resolution stays empty, so egui follows the
+        // system's own light-or-dark preference.
+        assert_eq!(settings.cached_palette(), None);
+
+        // An explicit theme (custom_theme) wins and silences the per-mode choice.
+        settings.custom_theme = Some("Forced.json".into());
+        assert_eq!(settings.system_mode_palette(false), None);
+        assert_eq!(settings.system_mode_palette(true), None);
+        settings.custom_theme = None;
+
+        // Only under Follow system.
+        settings.theme = ThemeChoice::Dark;
+        assert_eq!(settings.system_mode_palette(true), None);
+        settings.theme = ThemeChoice::System;
+
+        // No choice for an appearance falls back to the built-in palette.
+        settings.system_light_theme = None;
+        settings.system_light_theme_cache = None;
+        assert_eq!(settings.system_mode_palette(false), None);
+        assert_eq!(settings.system_mode_palette(true), Some(Palette::dark()));
+    }
+
+    /// The per-appearance theme choices round-trip through the settings file.
+    #[test]
+    fn the_follow_system_theme_choices_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        let settings = Settings {
+            theme: ThemeChoice::System,
+            system_light_theme: Some("Rose Pine Dawn.json".into()),
+            system_dark_theme: Some("Tokyo Night.json".into()),
+            ..Settings::default()
+        };
+        settings.save(&path).unwrap();
+        let loaded = Settings::load(&path);
+        assert_eq!(
+            loaded.system_light_theme.as_deref(),
+            Some("Rose Pine Dawn.json")
+        );
+        assert_eq!(
+            loaded.system_dark_theme.as_deref(),
+            Some("Tokyo Night.json")
+        );
+        // Unset by default, so an untouched install keeps the built-in palettes.
+        let fresh = Settings::default();
+        assert_eq!(fresh.system_light_theme, None);
+        assert_eq!(fresh.system_dark_theme, None);
     }
 
     /// The Messages theme is saved by name, and palettes cached before
