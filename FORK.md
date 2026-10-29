@@ -140,3 +140,6 @@ Emoji fallback maintenance: the bundled Noto font was refreshed from revision
 the distorted face. Tests cover recent smileys with system/fallback rendering
 and verify that every base picker entry has a bundled picture. No fastframe
 crate or platform font preference was changed.
+At the user's request, the distorted face (🫫), previously a missing glyph,
+is excluded from picker categories, search, and recents because its fallback
+artwork does not match the preferred system style. Existing messages are kept.

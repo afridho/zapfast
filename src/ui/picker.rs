@@ -159,10 +159,37 @@ fn group_name(group: emojis::Group) -> &'static str {
     }
 }
 
+// The distorted face previously showed as a missing glyph. Keep it out of
+// the picker rather than offering the visually mismatched fallback artwork.
+fn offered_emoji(emoji: &str) -> bool {
+    emoji != "🫫"
+}
+
+#[cfg(test)]
+mod emoji_offer_tests {
+    use super::*;
+
+    #[test]
+    fn excluded_emoji_is_absent_from_categories_search_recents_and_prewarm() {
+        let recent = vec!["🫫".to_owned(), "😀".to_owned()];
+        assert_eq!(usable_recent(&recent), vec!["😀"]);
+        assert!(!first_page(&recent).contains(&"🫫"));
+        for query in ["", "distorted"] {
+            for row in rows_for(query, &recent, 8, "Recent") {
+                if let Row::Emoji { values, .. } = row {
+                    assert!(!values.contains(&"🫫"));
+                }
+            }
+        }
+        assert!(offered_emoji("😀"));
+    }
+}
+
 fn usable_recent(recent: &[String]) -> Vec<&'static str> {
     recent
         .iter()
         .filter_map(|emoji| emojis::get(emoji).map(|emoji| emoji.as_str()))
+        .filter(|emoji| offered_emoji(emoji))
         .collect()
 }
 
@@ -180,7 +207,11 @@ pub fn first_page(recent: &[String]) -> Vec<&'static str> {
         .chain(
             usable_recent(recent)
                 .into_iter()
-                .chain(emojis::iter().map(|emoji| emoji.as_str()))
+                .chain(
+                    emojis::iter()
+                        .map(|emoji| emoji.as_str())
+                        .filter(|emoji| offered_emoji(emoji)),
+                )
                 .take(FIRST_PAGE),
         )
         .collect()
@@ -207,6 +238,7 @@ fn rows_for(
     };
     if !query.is_empty() {
         let found: Vec<&'static str> = emojis::iter()
+            .filter(|emoji| offered_emoji(emoji.as_str()))
             .filter(|emoji| {
                 emoji.name().to_lowercase().contains(&query)
                     || emoji
@@ -231,7 +263,11 @@ fn rows_for(
         rows.push(Row::Header(group_name(group)));
         chunk(
             &mut rows,
-            group.emojis().map(|emoji| emoji.as_str()).collect(),
+            group
+                .emojis()
+                .map(|emoji| emoji.as_str())
+                .filter(|emoji| offered_emoji(emoji))
+                .collect(),
         );
     }
     rows
