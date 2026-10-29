@@ -268,6 +268,9 @@ fn header(
             _ => None,
         });
     ui.horizontal(|ui| {
+        // Centre the toolbar in the full header, not in the natural height
+        // of its icon buttons, so it lines up with the window controls.
+        ui.set_min_height(HEADER);
         // The actions are laid out from the right edge first, and the title
         // takes what is left of the row, truncated: a long chat name used to
         // run under the icons.

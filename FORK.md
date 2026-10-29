@@ -147,8 +147,8 @@ artwork. Coverage is probed on a worker thread, not in a UI frame. This replaces
 the earlier single-emoji exclusion. Existing messages are unchanged.
 
 Linux scrolling is handled locally in `src/scroll.rs`: direct touchpad movement
-with a short 160 ms exponential release decay, and wheel steps eased over a
-55 ms time constant (80 points per line notch). This replaces both the original
+with a 260 ms exponential release decay and 1.3x touchpad gain, and wheel steps
+eased over a 55 ms time constant (120 points per line notch). This replaces both the original
 fastframe-scroll behaviour and the abruptly stopping standard-input experiment.
 Pane routing and touchpad detection for image previews remain. Windows and macOS
 keep their existing scrolling path. No fastframe crate was modified. This is a

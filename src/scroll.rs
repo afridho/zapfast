@@ -3,6 +3,10 @@
 
 use egui::{Context, MouseWheelUnit, TouchPhase, Vec2};
 
+const TOUCHPAD_GAIN: f32 = 1.3;
+const RELEASE_DECAY: f32 = 0.26;
+const WHEEL_GAIN: f32 = 3.0;
+
 #[derive(Default)]
 pub(crate) struct Scroll {
     pending: Vec2,
@@ -29,7 +33,7 @@ mod tests {
             false,
             false,
         ));
-        assert!(first.y > 0.0 && first.y < 80.0);
+        assert!(first.y > 0.0 && first.y < 120.0);
         let mut total = first.y;
         for frame in 1..100 {
             total += scroll
@@ -45,7 +49,7 @@ mod tests {
                 ))
                 .y;
         }
-        assert!((total - 80.0).abs() < 0.01);
+        assert!((total - 120.0).abs() < 0.01);
         assert!(!scroll.moving());
     }
 
@@ -55,7 +59,7 @@ mod tests {
         let raw = Vec2::new(0.0, 12.0);
         assert_eq!(
             scroll.step((raw, 0.0, 0.016, true, false, true, false, false)),
-            raw
+            raw * TOUCHPAD_GAIN
         );
         scroll.step((Vec2::ZERO, 0.016, 0.016, true, false, false, true, false));
         let first = scroll.step((Vec2::ZERO, 0.032, 0.016, false, false, false, false, false));
@@ -150,17 +154,17 @@ impl Scroll {
             self.velocity = Vec2::ZERO;
             self.last_touch = None;
             self.released = false;
-            // Two default egui lines per notch, eased over about 150 ms.
+            // Three default egui lines per notch, eased over about 150 ms.
             if self.pending.dot(raw) < 0.0 {
                 self.pending = Vec2::ZERO;
             }
-            self.pending += raw * 2.0;
+            self.pending += raw * WHEEL_GAIN;
         } else if touch {
             self.trackpad = true;
             self.pending = Vec2::ZERO;
             if raw != Vec2::ZERO {
                 let elapsed = self.last_touch.map_or(dt, |last| (now - last) as f32);
-                let sample = raw / elapsed.clamp(0.008, 0.05);
+                let sample = raw * TOUCHPAD_GAIN / elapsed.clamp(0.008, 0.05);
                 self.velocity = if self.released || self.velocity.dot(sample) < 0.0 {
                     sample
                 } else {
@@ -180,7 +184,7 @@ impl Scroll {
                     self.last_touch = None;
                 }
             }
-            return raw;
+            return raw * TOUCHPAD_GAIN;
         }
         // X11 does not always deliver an explicit finger-lift event.
         if !self.released && self.last_touch.is_some_and(|last| now - last > 0.08) {
@@ -194,8 +198,8 @@ impl Scroll {
             self.pending = Vec2::ZERO;
         }
         if self.released {
-            let decay = (-dt / 0.16).exp();
-            delta += self.velocity * (0.16 * (1.0 - decay));
+            let decay = (-dt / RELEASE_DECAY).exp();
+            delta += self.velocity * (RELEASE_DECAY * (1.0 - decay));
             self.velocity *= decay;
             if self.velocity.length() <= 8.0 {
                 self.velocity = Vec2::ZERO;

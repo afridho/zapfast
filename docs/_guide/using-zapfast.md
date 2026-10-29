@@ -15,8 +15,9 @@ undo history. Saved drafts remain available when you return to their chat.
 Enter sends and Shift+Enter adds a line. Turn off **Enter sends** in Settings
 to make Enter add a line and send with Ctrl+Enter (Command+Enter on macOS).
 On Linux, touchpad scrolling follows the fingers directly, with a short
-deceleration after release. Mouse-wheel steps ease into place. There is no
-touchpad distance multiplier or forced axis lock.
+deceleration after release. Touchpad movement is scaled by 1.3 for a faster
+response, and mouse-wheel steps ease into place at 120 points per notch.
+There is no forced axis lock.
 
 The emoji picker hides emoji your system emoji font cannot draw by default.
 Settings > Development (above About) offers **Show emoji unsupported by system
