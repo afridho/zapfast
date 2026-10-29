@@ -10,7 +10,8 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 use crate::model::{
-    Chat, ChatId, Contact, Gif, GifError, Message, PollDraft, StickerPack, StorageStats,
+    Chat, ChatActivity, ChatId, Contact, Gif, GifError, Message, PollDraft, StickerPack,
+    StorageStats,
 };
 use crate::paths::AccountDirs;
 
@@ -1215,7 +1216,7 @@ pub enum Event {
     Typing {
         chat: ChatId,
         sender: String,
-        composing: bool,
+        activity: Option<ChatActivity>,
     },
     Presence {
         id: String,

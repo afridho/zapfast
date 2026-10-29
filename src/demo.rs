@@ -964,7 +964,11 @@ pub fn populate(app: &mut App) {
     }
     app.typing.insert(
         SAMPLES[1].id.to_owned(),
-        vec![(group_members[1].0.to_owned(), std::time::Instant::now())],
+        vec![(
+            group_members[1].0.to_owned(),
+            crate::model::ChatActivity::Typing,
+            std::time::Instant::now(),
+        )],
     );
     app.presence.insert(
         ada.to_owned(),
@@ -3428,13 +3432,28 @@ pub fn apply_flags(app: &mut App, page: Option<&str>) {
                     vec![
                         (
                             "491702222222@s.whatsapp.net".to_owned(),
+                            crate::model::ChatActivity::Typing,
                             std::time::Instant::now(),
                         ),
                         (
                             "491703333333@s.whatsapp.net".to_owned(),
+                            crate::model::ChatActivity::Typing,
                             std::time::Instant::now(),
                         ),
                     ],
+                );
+            }
+            // A contact recording a voice message instead of typing.
+            "voice-presence" => {
+                let chat = SAMPLES[0].id;
+                app.open_chat = Some(chat.to_owned());
+                app.typing.insert(
+                    chat.to_owned(),
+                    vec![(
+                        chat.to_owned(),
+                        crate::model::ChatActivity::RecordingAudio,
+                        std::time::Instant::now() + std::time::Duration::from_secs(3600),
+                    )],
                 );
             }
             // The chat list collapsed to avatars with unread badges.
@@ -7515,6 +7534,7 @@ mod tests {
             "motion-playing",
             "motion-preview",
             "motion-viewer",
+            "voice-presence",
             "video",
             "video-playing",
             "video-expanded",
@@ -15442,6 +15462,7 @@ mod tests {
             chat.clone(),
             vec![(
                 chat.clone(),
+                crate::model::ChatActivity::Typing,
                 std::time::Instant::now() + std::time::Duration::from_secs(3600),
             )],
         );

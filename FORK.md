@@ -66,8 +66,9 @@ cargo test --locked --all-targets --all-features
 RUSTDOCFLAGS='-D warnings' cargo doc --locked --all-features --no-deps
 ```
 
-Still owed: the full checks have not been run since the native clipboard
-paste (#695) and the emoji-picker-on-send (#652) commits.
+The full checks passed on Linux for the fork through `44c5c34`.
+For PR #726, formatting and default-feature Clippy passed; the user deferred
+the remaining checks (all-feature Clippy, both test configurations, rustdoc).
 
 ## What this fork adds (oldest to newest)
 
@@ -128,3 +129,8 @@ Upstream pull requests pulled in early (squashed, author credited):
 - **Reaction popup** (`0ec2cf6`, PR #633, dschodits): clicking a reaction chip
   opens a popup with a per-emoji summary and a who-reacted-with-what list,
   instead of toggling the emoji directly.
+- **Voice recording presence** (PR #726, eternalwaitt): chat activity keeps
+  recording audio distinct from typing. The chat list and header describe
+  recording activity, and the activity bubble shows a microphone for recording
+  participants while retaining animated dots for participants who are typing.
+  The synthetic `voice-presence` demo covers the recording state.
