@@ -892,6 +892,13 @@ fn sections(app: &App) -> Vec<Section> {
         },
     );
 
+    let mut development = Section::new(translated(locale, "Development"));
+    development.toggle(
+        translated(locale, "Show emoji unsupported by system font"),
+        translated(locale, "Use bundled emoji artwork when the system font cannot draw an emoji. Its style may differ."),
+        |settings| &mut settings.show_unsupported_emoji,
+    );
+
     let mut about_section = Section::new(translated(locale, "About"));
     about_section.block(
         vec![
@@ -910,6 +917,7 @@ fn sections(app: &App) -> Vec<Section> {
         system,
         account_section,
         files,
+        development,
         about_section,
     ]
 }

@@ -159,37 +159,10 @@ fn group_name(group: emojis::Group) -> &'static str {
     }
 }
 
-// The distorted face previously showed as a missing glyph. Keep it out of
-// the picker rather than offering the visually mismatched fallback artwork.
-fn offered_emoji(emoji: &str) -> bool {
-    emoji != "🫫"
-}
-
-#[cfg(test)]
-mod emoji_offer_tests {
-    use super::*;
-
-    #[test]
-    fn excluded_emoji_is_absent_from_categories_search_recents_and_prewarm() {
-        let recent = vec!["🫫".to_owned(), "😀".to_owned()];
-        assert_eq!(usable_recent(&recent), vec!["😀"]);
-        assert!(!first_page(&recent).contains(&"🫫"));
-        for query in ["", "distorted"] {
-            for row in rows_for(query, &recent, 8, "Recent") {
-                if let Row::Emoji { values, .. } = row {
-                    assert!(!values.contains(&"🫫"));
-                }
-            }
-        }
-        assert!(offered_emoji("😀"));
-    }
-}
-
 fn usable_recent(recent: &[String]) -> Vec<&'static str> {
     recent
         .iter()
         .filter_map(|emoji| emojis::get(emoji).map(|emoji| emoji.as_str()))
-        .filter(|emoji| offered_emoji(emoji))
         .collect()
 }
 
@@ -207,26 +180,34 @@ pub fn first_page(recent: &[String]) -> Vec<&'static str> {
         .chain(
             usable_recent(recent)
                 .into_iter()
-                .chain(
-                    emojis::iter()
-                        .map(|emoji| emoji.as_str())
-                        .filter(|emoji| offered_emoji(emoji)),
-                )
+                .chain(emojis::iter().map(|emoji| emoji.as_str()))
                 .take(FIRST_PAGE),
         )
         .collect()
 }
 
+#[cfg(test)]
 fn rows_for(
     query: &str,
     recent: &[String],
     columns: usize,
     recent_label: &'static str,
 ) -> Vec<Row> {
+    rows_for_supported(query, recent, columns, recent_label, |_| true)
+}
+
+fn rows_for_supported(
+    query: &str,
+    recent: &[String],
+    columns: usize,
+    recent_label: &'static str,
+    supported: impl Fn(&str) -> bool,
+) -> Vec<Row> {
     let query = query.trim().to_lowercase();
     let mut rows = Vec::new();
     let mut next = 0;
     let mut chunk = |rows: &mut Vec<Row>, list: Vec<&'static str>| {
+        let list: Vec<_> = list.into_iter().filter(|emoji| supported(emoji)).collect();
         for part in list.chunks(columns) {
             let first = next;
             next += part.len();
@@ -238,7 +219,6 @@ fn rows_for(
     };
     if !query.is_empty() {
         let found: Vec<&'static str> = emojis::iter()
-            .filter(|emoji| offered_emoji(emoji.as_str()))
             .filter(|emoji| {
                 emoji.name().to_lowercase().contains(&query)
                     || emoji
@@ -263,14 +243,36 @@ fn rows_for(
         rows.push(Row::Header(group_name(group)));
         chunk(
             &mut rows,
-            group
-                .emojis()
-                .map(|emoji| emoji.as_str())
-                .filter(|emoji| offered_emoji(emoji))
-                .collect(),
+            group.emojis().map(|emoji| emoji.as_str()).collect(),
         );
     }
     rows
+}
+
+#[cfg(test)]
+mod coverage_tests {
+    use super::*;
+
+    #[test]
+    fn system_coverage_filters_recents_categories_and_search_before_indexing() {
+        for query in ["", "distorted"] {
+            let rows = rows_for_supported(query, &["🫫".into()], 8, "Recent", |s| s != "🫫");
+            let mut next = 0;
+            for row in rows {
+                if let Row::Emoji { first, values } = row {
+                    assert!(!values.contains(&"🫫"));
+                    assert_eq!(first, next);
+                    next += values.len();
+                }
+            }
+        }
+        let rows = rows_for_supported("", &[], 8, "Recent", |_| true);
+        assert!(
+            rows.iter()
+                .any(|row| matches!(row, Row::Emoji { values, .. } if values.contains(&"🫫")))
+        );
+        assert!(!crate::settings::Settings::default().show_unsupported_emoji);
+    }
 }
 
 fn place_picker(screen: Rect, anchor: Option<Rect>, width: f32, height: f32) -> egui::Pos2 {
@@ -697,7 +699,9 @@ fn emoji_grid(
             .as_ref()
             .unwrap_or(&app.settings.recent_emoji)
     };
-    let rows = rows_for(&app.picker_search, recent, columns, recent_label);
+    let rows = rows_for_supported(&app.picker_search, recent, columns, recent_label, |emoji| {
+        app.settings.show_unsupported_emoji || crate::emoji::system_supports(emoji, ui.ctx())
+    });
     let emoji_count = rows
         .iter()
         .map(|row| match row {

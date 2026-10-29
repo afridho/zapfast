@@ -18,6 +18,32 @@ pub use fastframe_emoji::{PLACEHOLDER, only_emoji};
 /// Noto Color Emoji, behind the platform's font.
 const BUNDLED: &[u8] = include_bytes!("../assets/fonts/NotoColorEmoji.ttf");
 
+/// Cache coverage outside the frame path: drawing thousands of probes inside
+/// a picker frame would stall the interface. An empty set is safe while warming.
+pub fn system_supports(cluster: &str, ctx: &egui::Context) -> bool {
+    static COVERAGE: std::sync::OnceLock<
+        std::sync::Arc<std::sync::OnceLock<std::collections::HashSet<String>>>,
+    > = std::sync::OnceLock::new();
+    let coverage = COVERAGE.get_or_init(|| {
+        let coverage = std::sync::Arc::new(std::sync::OnceLock::new());
+        let result = coverage.clone();
+        let ctx = ctx.clone();
+        std::thread::spawn(move || {
+            let system = fastframe_emoji::EmojiSetup::default().load();
+            let supported = emojis::iter()
+                .filter(|entry| system.render(entry.as_str(), 16).is_some())
+                .map(|entry| entry.as_str().to_owned())
+                .collect();
+            let _ = result.set(supported);
+            ctx.request_repaint();
+        });
+        coverage
+    });
+    coverage
+        .get()
+        .is_some_and(|supported| supported.contains(cluster))
+}
+
 fn setup() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {

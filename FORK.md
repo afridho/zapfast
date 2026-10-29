@@ -140,6 +140,8 @@ Emoji fallback maintenance: the bundled Noto font was refreshed from revision
 the distorted face. Tests cover recent smileys with system/fallback rendering
 and verify that every base picker entry has a bundled picture. No fastframe
 crate or platform font preference was changed.
-At the user's request, the distorted face (🫫), previously a missing glyph,
-is excluded from picker categories, search, and recents because its fallback
-artwork does not match the preferred system style. Existing messages are kept.
+Settings > Development, immediately above About, contains
+`show_unsupported_emoji` (default false). Off filters picker categories, search,
+and recents by cached system-font rendering coverage; On allows bundled fallback
+artwork. Coverage is probed on a worker thread, not in a UI frame. This replaces
+the earlier single-emoji exclusion. Existing messages are unchanged.

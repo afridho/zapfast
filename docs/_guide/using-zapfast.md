@@ -14,9 +14,11 @@ undo history. Saved drafts remain available when you return to their chat.
 
 Enter sends and Shift+Enter adds a line. Turn off **Enter sends** in Settings
 to make Enter add a line and send with Ctrl+Enter (Command+Enter on macOS).
-Newer emoji missing from your system's emoji font use the bundled Noto colour
-emoji fallback. The distorted face is omitted from the picker; existing messages
-containing it are unchanged.
+The emoji picker hides emoji your system emoji font cannot draw by default.
+Settings > Development (above About) offers **Show emoji unsupported by system
+font**, off by default. Turn it on to include these emoji using bundled Noto
+artwork, whose style may differ. Existing messages still use fallback artwork
+when needed, regardless of this picker setting.
 
 The emoji picker stays open while you choose emoji and closes when you send
 the text.
