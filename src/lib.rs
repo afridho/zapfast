@@ -51,6 +51,8 @@ pub mod privacy;
 pub mod proxy;
 pub mod qr;
 pub mod safety;
+#[cfg(target_os = "linux")]
+mod scroll;
 pub mod settings;
 pub mod single_instance;
 pub mod sticker_meta;

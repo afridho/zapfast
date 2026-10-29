@@ -646,6 +646,8 @@ pub struct App {
     /// The wheel step, and on Linux the touchpad's scale, glide and axis
     /// lock.
     pub(crate) scrolling: fastframe_scroll::Scrolling,
+    #[cfg(target_os = "linux")]
+    pub(crate) linux_scroll: crate::scroll::Scroll,
     /// Keeps a scroll gesture with the pane it began over.
     pub scroll_route: ScrollRoute,
 
@@ -1484,6 +1486,8 @@ impl App {
             picture_origins: Default::default(),
             picture_texture: None,
             scrolling: fastframe_scroll::Scrolling::default(),
+            #[cfg(target_os = "linux")]
+            linux_scroll: crate::scroll::Scroll::default(),
             scroll_route: ScrollRoute::default(),
             page: Page::Chats,
             dialog: None,
@@ -10532,15 +10536,13 @@ impl App {
         }
     }
 
-    /// Keeps this frame's scrolling with the pane its gesture began over,
-    /// after fastframe-scroll's axis lock and glide have had their say.
-    /// Linux uses egui's ordinary input without application-added scaling,
-    /// axis locking or momentum. Other platforms retain their existing path.
+    /// Linux uses direct touchpad input, short inertia and eased wheel steps.
+    /// Other platforms retain their existing path.
     fn apply_scrolling(&mut self, ctx: &egui::Context) {
         #[cfg(target_os = "linux")]
         {
             self.scrolling.stop();
-            let _ = ctx;
+            self.linux_scroll.apply(ctx);
         }
         #[cfg(not(target_os = "linux"))]
         self.scrolling.apply(ctx);
@@ -10559,6 +10561,9 @@ impl App {
                     _ => (moved, lifted),
                 })
         });
+        #[cfg(target_os = "linux")]
+        let gliding = self.linux_scroll.moving();
+        #[cfg(not(target_os = "linux"))]
         let gliding = self.scrolling.gliding();
         self.scroll_route.route(ctx, moved, lifted, gliding);
     }
@@ -13391,7 +13396,7 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn linux_scrolling_keeps_standard_egui_input() {
+    fn linux_scrolling_drops_egui_smoothing_without_new_input() {
         let mut app = app();
         let ctx = egui::Context::default();
         let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
@@ -13403,7 +13408,7 @@ mod tests {
             app.apply_scrolling(ui.ctx());
             assert_eq!(
                 ui.ctx().input(|input| input.smooth_scroll_delta),
-                egui::vec2(7.0, 21.0)
+                egui::Vec2::ZERO
             );
             assert_eq!(
                 ui.ctx()

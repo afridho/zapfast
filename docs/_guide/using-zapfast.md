@@ -14,8 +14,9 @@ undo history. Saved drafts remain available when you return to their chat.
 
 Enter sends and Shift+Enter adds a line. Turn off **Enter sends** in Settings
 to make Enter add a line and send with Ctrl+Enter (Command+Enter on macOS).
-On Linux, scrolling uses egui's standard behaviour without ZapFast's extra
-touchpad scaling, axis lock, or added glide after releasing a gesture.
+On Linux, touchpad scrolling follows the fingers directly, with a short
+deceleration after release. Mouse-wheel steps ease into place. There is no
+touchpad distance multiplier or forced axis lock.
 
 The emoji picker hides emoji your system emoji font cannot draw by default.
 Settings > Development (above About) offers **Show emoji unsupported by system
