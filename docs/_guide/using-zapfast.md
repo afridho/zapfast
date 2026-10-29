@@ -14,8 +14,10 @@ undo history. Saved drafts remain available when you return to their chat.
 
 Enter sends and Shift+Enter adds a line. Turn off **Enter sends** in Settings
 to make Enter add a line and send with Ctrl+Enter (Command+Enter on macOS).
-On Linux, touchpad scrolling follows the fingers directly, without added
-momentum after input stops. Touchpad movement is scaled by 1.3 for a faster
+On Linux, touchpad scrolling follows the fingers and glides after release.
+A new touchpad gesture or a click stops the glide. Resting fingers before
+release prevents a new glide on platforms reporting gesture phases.
+Touchpad movement is scaled by 1.3 for a faster
 response, and mouse-wheel steps ease into place at 120 points per notch.
 There is no forced axis lock.
 
