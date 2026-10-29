@@ -145,3 +145,8 @@ Settings > Development, immediately above About, contains
 and recents by cached system-font rendering coverage; On allows bundled fallback
 artwork. Coverage is probed on a worker thread, not in a UI frame. This replaces
 the earlier single-emoji exclusion. Existing messages are unchanged.
+
+Linux scrolling uses ordinary egui input rather than fastframe-scroll's custom
+wheel step, touchpad scaling, axis lock, and added glide. Pane routing remains;
+image-preview touchpad detection reads point-unit wheel events directly. Windows
+and macOS keep their existing scrolling path. No fastframe crate was modified.

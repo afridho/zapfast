@@ -595,6 +595,19 @@ fn still(
                 preview.set_fit_scale(size.x / texture.size.x);
             }
             let scroll_id = ui.make_persistent_id(egui::IdSalt::new("image-preview-scroll"));
+            #[cfg(target_os = "linux")]
+            let trackpad = ui.input(|input| {
+                input.events.iter().any(|event| {
+                    matches!(
+                        event,
+                        egui::Event::MouseWheel {
+                            unit: egui::MouseWheelUnit::Point,
+                            ..
+                        }
+                    )
+                })
+            });
+            #[cfg(not(target_os = "linux"))]
             let trackpad = app.scrolling.from_trackpad();
             // Read before the scroll area, which would otherwise take the
             // wheel. The zoom lands on the preview the viewer will put back,

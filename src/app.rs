@@ -10249,7 +10249,7 @@ impl App {
             // Files dropped or pasted on the lock screen go nowhere.
             self.dropping = false;
         } else {
-            self.scrolling.apply(ctx);
+            self.apply_scrolling(ctx);
             self.route_scroll(ctx);
             Self::paste_shift_insert(ctx);
             self.take_drops_and_pastes(ctx);
@@ -10534,6 +10534,18 @@ impl App {
 
     /// Keeps this frame's scrolling with the pane its gesture began over,
     /// after fastframe-scroll's axis lock and glide have had their say.
+    /// Linux uses egui's ordinary input without application-added scaling,
+    /// axis locking or momentum. Other platforms retain their existing path.
+    fn apply_scrolling(&mut self, ctx: &egui::Context) {
+        #[cfg(target_os = "linux")]
+        {
+            self.scrolling.stop();
+            let _ = ctx;
+        }
+        #[cfg(not(target_os = "linux"))]
+        self.scrolling.apply(ctx);
+    }
+
     fn route_scroll(&mut self, ctx: &egui::Context) {
         let (moved, lifted) = ctx.input(|input| {
             input
@@ -13375,6 +13387,32 @@ mod tests {
         );
         assert_eq!(app.deferred_account_actions.len(), 1);
         assert_eq!(app.deferred_account_actions[0].0.as_str(), "2");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_scrolling_keeps_standard_egui_input() {
+        let mut app = app();
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            ui.ctx()
+                .input_mut(|input| input.smooth_scroll_delta = egui::vec2(7.0, 21.0));
+            let speed = ui
+                .ctx()
+                .options(|options| options.input_options.line_scroll_speed);
+            app.apply_scrolling(ui.ctx());
+            assert_eq!(
+                ui.ctx().input(|input| input.smooth_scroll_delta),
+                egui::vec2(7.0, 21.0)
+            );
+            assert_eq!(
+                ui.ctx()
+                    .options(|options| options.input_options.line_scroll_speed),
+                speed
+            );
+            assert!(!app.scrolling.gliding());
+        });
+        output.textures_delta.clear();
     }
 
     /// A trackpad gesture keeps its pane while fastframe-scroll says it goes
