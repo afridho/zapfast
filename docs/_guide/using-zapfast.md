@@ -14,6 +14,9 @@ undo history. Saved drafts remain available when you return to their chat.
 
 Enter sends and Shift+Enter adds a line. Turn off **Enter sends** in Settings
 to make Enter add a line and send with Ctrl+Enter (Command+Enter on macOS).
+Newer emoji missing from your system's emoji font use the bundled Noto colour
+emoji fallback, including the distorted face, so they do not appear as boxes.
+
 The emoji picker stays open while you choose emoji and closes when you send
 the text.
 `*bold*`, `_italic_`, `~strike~`, and ```` ```monospace ```` ```` format

@@ -110,6 +110,30 @@ mod tests {
     }
 
     #[test]
+    fn recent_smileys_render_in_colour() {
+        let fallback = bundled();
+        let desktop = fastframe_emoji::EmojiSetup::default()
+            .bundled(BUNDLED)
+            .load();
+        for sequence in ["🫩", "🫠", "🫪", "🫫"] {
+            let picture = fallback.render(sequence, 72).expect("bundled smiley");
+            assert!(picture.has_colour(), "bundled {sequence}");
+            let picture = desktop.render(sequence, 72).expect("desktop smiley");
+            assert!(picture.has_colour(), "desktop {sequence}");
+        }
+    }
+
+    #[test]
+    fn every_picker_emoji_has_a_bundled_picture() {
+        let emoji = bundled();
+        let missing: Vec<_> = emojis::iter()
+            .filter(|entry| emoji.render(entry.as_str(), 32).is_none())
+            .map(|entry| entry.as_str())
+            .collect();
+        assert!(missing.is_empty(), "missing picker emoji: {missing:?}");
+    }
+
+    #[test]
     fn the_bundled_font_joins_sequences() {
         let emoji = bundled();
         for sequence in ["🇩🇪", "👍🏽", "👨‍👩‍👧", "#️⃣", "🏳️‍🌈"]

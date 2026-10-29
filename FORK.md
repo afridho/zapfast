@@ -134,3 +134,9 @@ Upstream pull requests pulled in early (squashed, author credited):
   recording activity, and the activity bubble shows a microphone for recording
   participants while retaining animated dots for participants who are typing.
   The synthetic `voice-presence` demo covers the recording state.
+
+Emoji fallback maintenance: the bundled Noto font was refreshed from revision
+`99701e07d3d1fe1bdbcdb14964547f0fd592966f` to cover newer picker entries such as
+the distorted face. Tests cover recent smileys with system/fallback rendering
+and verify that every base picker entry has a bundled picture. No fastframe
+crate or platform font preference was changed.
