@@ -10536,7 +10536,7 @@ impl App {
         }
     }
 
-    /// Linux uses direct touchpad input, short inertia and eased wheel steps.
+    /// Linux uses direct touchpad input without added inertia and eased wheel steps.
     /// Other platforms retain their existing path.
     fn apply_scrolling(&mut self, ctx: &egui::Context) {
         #[cfg(target_os = "linux")]
