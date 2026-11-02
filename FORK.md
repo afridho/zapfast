@@ -20,6 +20,34 @@ what this fork adds on top.
   (`git commit --author=...` plus a `Co-authored-by:` trailer).
 - The user writes in Indonesian; reply in Indonesian.
 
+### Preserve the fork's chat export when syncing upstream
+
+This is an intentional fork behaviour, not an outdated upstream implementation.
+Every upstream sync must preserve it unless the user explicitly requests a change:
+
+- Offer **Export chat** in both the chat list's right-click menu and the open
+  conversation's menu. Use **Export chat** and **Export** without an ellipsis
+  (`…` or `...`).
+- Keep the confirmation dialog and its **Include downloaded attachments (ZIP)**
+  option, but never open a destination/save-file picker. Save directly to the
+  configured download folder, otherwise the system Downloads folder.
+- Name the file after the chat, sanitize the filename, and add a numbered suffix
+  when needed. Never overwrite an earlier export.
+- Keep export available offline, disable it for locked chats and while an export
+  is running, and retain the account/privacy permission checks and cancellation
+  safeguards. Export only locally archived messages and downloaded attachments;
+  do not fetch missing history or media. Report the saved path in the toast.
+- When resolving conflicts, retain these behaviours in
+  `src/backend/worker/chat_export.rs`, `src/archive/chat_export.rs`,
+  `src/ui/chats.rs`, `src/ui/conversation.rs`, and `src/ui/chat_export.rs`.
+  Do not replace these files wholesale with upstream versions without restoring
+  the fork's export flow.
+- Keep the offline chat-list menu regression and filename collision tests
+  passing, and check both menu entry points and ellipsis-free labels after a
+  sync. Keep the chat-export documentation aligned with this flow.
+
+The restored implementation is recorded in commit `1a1a81c`.
+
 ## Build, run and install on Linux
 
 Dev build and run (foreground process is killed and restarted):
