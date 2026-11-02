@@ -291,6 +291,8 @@ pub fn handle(app: &mut App, ctx: &egui::Context) {
         } else if app.info_visible() && app.group_name_edit.is_some() {
             // Cancels the group rename and keeps the panel open.
             actions.push(Action::CloseGroupName);
+        } else if app.info_visible() && app.group_description_edit.is_some() {
+            actions.push(Action::CloseGroupDescription);
         } else if app.info_visible() && app.contact_edit.is_some() {
             actions.push(Action::CloseContactEdit);
         } else if app.info_visible() {

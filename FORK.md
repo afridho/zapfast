@@ -72,6 +72,34 @@ the remaining checks (all-feature Clippy, both test configurations, rustdoc).
 
 ## What this fork adds (oldest to newest)
 
+### Upstream 0.21.0 integration
+
+The fork integrates upstream tag `v0.21.0` (`25e62578b3f750123fc4750253bce97401436260`).
+Overlapping exports, reactions, GIF search/animation, recording presence, keyboard
+actions and clipboard support now use upstream's implementation. Export uses the
+upstream destination picker instead of the fork's automatic Downloads destination.
+GIF pagination offers Load more and Retry; it is not automatic infinite scrolling.
+
+The custom light/dark system palettes and their cached settings, blur controls,
+Linux traffic lights and rounded corners, custom application PNG, display name,
+emoji coverage filter and Linux scroll response remain local additions. No live
+settings or user theme files are migrated or rewritten by this integration.
+
+The winit dependency now uses upstream's approved `crmne/winit` revision
+`59ebfb727b8c83fcd28f8ca59c3733e32b4b4e9b`, including native Wayland clipboard
+support. Historical implementation notes below describe the earlier fork state.
+
+Validation on Linux: formatting, default and all-feature Clippy with warnings
+denied, default and all-feature all-target tests, and all-feature rustdoc with
+warnings denied all passed. Each test configuration passed 2,543 library tests
+with 15 intentionally ignored, plus the binary and integration tests. The
+dependency-source and review-evidence checks and the isolated user-installer
+test passed too. A demo-enabled debug binary was built. The system-mode palette
+regression covers switching appearances and retaining cached palettes after
+files disappear. Headless layout tests passed; native screenshots and live
+WhatsApp calls or messages were not tested. Windows and macOS were not compiled
+or run in this Linux environment.
+
 Own Linux enhancements:
 
 - **install-user.sh icon fix** (`a488334`): fix the Linux icon install and make

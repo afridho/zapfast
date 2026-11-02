@@ -1940,7 +1940,7 @@ checksum = "117240f60069e65410b3ae1bb213295bd828f707b5bec6596a1afc8793ce0cbc"
 [[package]]
 name = "dpi"
 version = "0.1.1"
-source = "git+https://github.com/afridho/winit?rev=8e77206e#8e77206e01a6c01bc9cf2d6a2b8769a52568350f"
+source = "git+https://github.com/crmne/winit?rev=59ebfb727b8c83fcd28f8ca59c3733e32b4b4e9b#59ebfb727b8c83fcd28f8ca59c3733e32b4b4e9b"
 
 [[package]]
 name = "dpi"
@@ -1965,7 +1965,7 @@ dependencies = [
 [[package]]
 name = "ecolor"
 version = "0.36.2"
-source = "git+https://github.com/crmne/egui?rev=6ce633ba5f7f64d19ef6d204f9377da560bb546b#6ce633ba5f7f64d19ef6d204f9377da560bb546b"
+source = "git+https://github.com/crmne/egui?rev=1cc61c8a83625855b08cb8fed912900cf3b01b70#1cc61c8a83625855b08cb8fed912900cf3b01b70"
 dependencies = [
  "bytemuck",
  "emath",
@@ -1975,7 +1975,7 @@ dependencies = [
 [[package]]
 name = "eframe"
 version = "0.36.2"
-source = "git+https://github.com/crmne/egui?rev=6ce633ba5f7f64d19ef6d204f9377da560bb546b#6ce633ba5f7f64d19ef6d204f9377da560bb546b"
+source = "git+https://github.com/crmne/egui?rev=1cc61c8a83625855b08cb8fed912900cf3b01b70#1cc61c8a83625855b08cb8fed912900cf3b01b70"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -2010,7 +2010,7 @@ dependencies = [
 [[package]]
 name = "egui"
 version = "0.36.2"
-source = "git+https://github.com/crmne/egui?rev=6ce633ba5f7f64d19ef6d204f9377da560bb546b#6ce633ba5f7f64d19ef6d204f9377da560bb546b"
+source = "git+https://github.com/crmne/egui?rev=1cc61c8a83625855b08cb8fed912900cf3b01b70#1cc61c8a83625855b08cb8fed912900cf3b01b70"
 dependencies = [
  "accesskit",
  "ahash",
@@ -2031,7 +2031,7 @@ dependencies = [
 [[package]]
 name = "egui-wgpu"
 version = "0.36.2"
-source = "git+https://github.com/crmne/egui?rev=6ce633ba5f7f64d19ef6d204f9377da560bb546b#6ce633ba5f7f64d19ef6d204f9377da560bb546b"
+source = "git+https://github.com/crmne/egui?rev=1cc61c8a83625855b08cb8fed912900cf3b01b70#1cc61c8a83625855b08cb8fed912900cf3b01b70"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -2050,7 +2050,7 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.36.2"
-source = "git+https://github.com/crmne/egui?rev=6ce633ba5f7f64d19ef6d204f9377da560bb546b#6ce633ba5f7f64d19ef6d204f9377da560bb546b"
+source = "git+https://github.com/crmne/egui?rev=1cc61c8a83625855b08cb8fed912900cf3b01b70#1cc61c8a83625855b08cb8fed912900cf3b01b70"
 dependencies = [
  "accesskit_winit",
  "arboard",
@@ -2072,7 +2072,7 @@ dependencies = [
 [[package]]
 name = "egui_extras"
 version = "0.36.2"
-source = "git+https://github.com/crmne/egui?rev=6ce633ba5f7f64d19ef6d204f9377da560bb546b#6ce633ba5f7f64d19ef6d204f9377da560bb546b"
+source = "git+https://github.com/crmne/egui?rev=1cc61c8a83625855b08cb8fed912900cf3b01b70#1cc61c8a83625855b08cb8fed912900cf3b01b70"
 dependencies = [
  "ahash",
  "egui",
@@ -2088,7 +2088,7 @@ dependencies = [
 [[package]]
 name = "egui_glow"
 version = "0.36.2"
-source = "git+https://github.com/crmne/egui?rev=6ce633ba5f7f64d19ef6d204f9377da560bb546b#6ce633ba5f7f64d19ef6d204f9377da560bb546b"
+source = "git+https://github.com/crmne/egui?rev=1cc61c8a83625855b08cb8fed912900cf3b01b70#1cc61c8a83625855b08cb8fed912900cf3b01b70"
 dependencies = [
  "bytemuck",
  "egui",
@@ -2107,7 +2107,7 @@ checksum = "252afb9ae5eaa683babdc6a068b3f5726eb19e05070c731f9b2a23a7c3e8ed34"
 [[package]]
 name = "emath"
 version = "0.36.2"
-source = "git+https://github.com/crmne/egui?rev=6ce633ba5f7f64d19ef6d204f9377da560bb546b#6ce633ba5f7f64d19ef6d204f9377da560bb546b"
+source = "git+https://github.com/crmne/egui?rev=1cc61c8a83625855b08cb8fed912900cf3b01b70#1cc61c8a83625855b08cb8fed912900cf3b01b70"
 dependencies = [
  "bytemuck",
  "serde",
@@ -2226,7 +2226,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.36.2"
-source = "git+https://github.com/crmne/egui?rev=6ce633ba5f7f64d19ef6d204f9377da560bb546b#6ce633ba5f7f64d19ef6d204f9377da560bb546b"
+source = "git+https://github.com/crmne/egui?rev=1cc61c8a83625855b08cb8fed912900cf3b01b70#1cc61c8a83625855b08cb8fed912900cf3b01b70"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -2252,7 +2252,7 @@ dependencies = [
 [[package]]
 name = "epaint_default_fonts"
 version = "0.36.2"
-source = "git+https://github.com/crmne/egui?rev=6ce633ba5f7f64d19ef6d204f9377da560bb546b#6ce633ba5f7f64d19ef6d204f9377da560bb546b"
+source = "git+https://github.com/crmne/egui?rev=1cc61c8a83625855b08cb8fed912900cf3b01b70#1cc61c8a83625855b08cb8fed912900cf3b01b70"
 
 [[package]]
 name = "equivalent"
@@ -2325,8 +2325,8 @@ checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "fastframe-audio"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "cpal",
  "libc",
@@ -2337,8 +2337,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-autostart"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "fastframe-file",
  "log",
@@ -2351,8 +2351,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-desktop"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "log",
  "mac-usernotifications",
@@ -2361,16 +2361,16 @@ dependencies = [
 
 [[package]]
 name = "fastframe-dirs"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "directories",
 ]
 
 [[package]]
 name = "fastframe-dock"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "log",
  "objc2 0.6.5",
@@ -2383,8 +2383,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-emoji"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "egui",
  "fastframe-fonts",
@@ -2401,8 +2401,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-file"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "log",
  "windows-sys 0.60.2",
@@ -2410,8 +2410,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-fonts"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "directories",
  "egui",
@@ -2423,8 +2423,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-i18n"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "include-po",
  "polib",
@@ -2434,16 +2434,16 @@ dependencies = [
 
 [[package]]
 name = "fastframe-icons"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "egui",
 ]
 
 [[package]]
 name = "fastframe-instance"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "directories",
  "getrandom 0.4.3",
@@ -2452,8 +2452,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-log"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "env_logger",
  "jiff",
@@ -2462,8 +2462,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-notifications"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "block2 0.6.2",
  "directories",
@@ -2485,8 +2485,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-power"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "log",
  "objc2 0.6.5",
@@ -2497,16 +2497,16 @@ dependencies = [
 
 [[package]]
 name = "fastframe-scroll"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "egui",
 ]
 
 [[package]]
 name = "fastframe-shell"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "eframe",
  "egui",
@@ -2521,8 +2521,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-text"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "egui",
  "zbus",
@@ -2530,8 +2530,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-theme"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "directories",
  "egui",
@@ -2543,8 +2543,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-titlebar"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "directories",
  "eframe",
@@ -2559,8 +2559,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-tray"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "ksni",
  "log",
@@ -2573,8 +2573,8 @@ dependencies = [
 
 [[package]]
 name = "fastframe-update"
-version = "0.15.2"
-source = "git+https://github.com/crmne/fastframe?tag=v0.15.2#4d115b5e5838c207c0879205e6b1bc16fc1e9a9c"
+version = "0.15.4"
+source = "git+https://github.com/crmne/fastframe?tag=v0.15.4#8faf6f99ba782b22916a118c77d1a25d97d1414f"
 dependencies = [
  "anyhow",
  "fastframe-dirs",
@@ -5660,6 +5660,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rasterlottie"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d927b491163e8ef9fc7859e900beba5a4e3331021e73a068982ffbe40c38b359"
+dependencies = [
+ "base64 0.23.1",
+ "image",
+ "rustc-hash 2.1.3",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tiny-skia 0.12.0",
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "raw-window-handle"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5842,7 +5858,7 @@ dependencies = [
  "pico-args",
  "rgb",
  "svgtypes",
- "tiny-skia",
+ "tiny-skia 0.11.4",
  "usvg",
 ]
 
@@ -6246,7 +6262,7 @@ dependencies = [
  "log",
  "memmap2",
  "smithay-client-toolkit 0.19.2",
- "tiny-skia",
+ "tiny-skia 0.11.4",
 ]
 
 [[package]]
@@ -6614,17 +6630,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "socks"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0c3dbbd9ae980613c6dd8e28a9407b50509d3803b57624d5dfe8315218cd58b"
-dependencies = [
- "byteorder",
- "libc",
- "winapi",
-]
-
-[[package]]
 name = "sonora"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6981,7 +6986,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.60.2",
@@ -7083,7 +7088,22 @@ dependencies = [
  "cfg-if 1.0.4",
  "log",
  "png 0.17.16",
- "tiny-skia-path",
+ "tiny-skia-path 0.11.4",
+]
+
+[[package]]
+name = "tiny-skia"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47ffee5eaaf5527f630fb0e356b90ebdec84d5d18d937c5e440350f88c5a91ea"
+dependencies = [
+ "arrayref",
+ "arrayvec",
+ "bytemuck",
+ "cfg-if 1.0.4",
+ "log",
+ "png 0.18.1",
+ "tiny-skia-path 0.12.0",
 ]
 
 [[package]]
@@ -7091,6 +7111,17 @@ name = "tiny-skia-path"
 version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c9e7fc0c2e86a30b117d0462aa261b72b7a99b7ebd7deb3a14ceda95c5bdc93"
+dependencies = [
+ "arrayref",
+ "bytemuck",
+ "strict-num",
+]
+
+[[package]]
+name = "tiny-skia-path"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edca365c3faccca67d06593c5980fa6c57687de727a03131735bb85f01fdeeb9"
 dependencies = [
  "arrayref",
  "bytemuck",
@@ -7491,16 +7522,15 @@ dependencies = [
 
 [[package]]
 name = "ureq"
-version = "3.4.0"
+version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "972d7902c8735f2695410b8aed7df6ed12a47394aa1c8d7af49f0497b731a94d"
+checksum = "cde93ff05758a36a851a398a772b0b79a82fbe3c186a46f2696baaeaf84c966b"
 dependencies = [
  "base64 0.23.1",
  "log",
  "percent-encoding",
  "rustls",
  "rustls-pki-types",
- "socks",
  "ureq-proto",
  "utf8-zero",
  "webpki-roots",
@@ -7508,9 +7538,9 @@ dependencies = [
 
 [[package]]
 name = "ureq-proto"
-version = "0.6.1"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da5f78b09e6941e1a0f2e30e695e4b120377b54d5e0aec11b594bb57b3971613"
+checksum = "841583fc36089d7d59419568ae157f43a5a03a2e5a81ba87c77d1596ef46e922"
 dependencies = [
  "base64 0.23.1",
  "http",
@@ -7548,7 +7578,7 @@ dependencies = [
  "siphasher",
  "strict-num",
  "svgtypes",
- "tiny-skia-path",
+ "tiny-skia-path 0.11.4",
  "xmlwriter",
 ]
 
@@ -8637,7 +8667,7 @@ checksum = "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650"
 [[package]]
 name = "winit"
 version = "0.30.13"
-source = "git+https://github.com/afridho/winit?rev=8e77206e#8e77206e01a6c01bc9cf2d6a2b8769a52568350f"
+source = "git+https://github.com/crmne/winit?rev=59ebfb727b8c83fcd28f8ca59c3733e32b4b4e9b#59ebfb727b8c83fcd28f8ca59c3733e32b4b4e9b"
 dependencies = [
  "ahash",
  "android-activity",
@@ -8890,7 +8920,7 @@ dependencies = [
 
 [[package]]
 name = "zapfast"
-version = "0.20.1"
+version = "0.21.0"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -8954,6 +8984,7 @@ dependencies = [
  "png 0.18.1",
  "qrcode",
  "rand 0.10.3",
+ "rasterlottie",
  "raw-window-handle",
  "reqwest",
  "resvg",

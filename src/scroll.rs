@@ -4,7 +4,7 @@
 use egui::{Context, MouseWheelUnit, TouchPhase, Vec2};
 
 const TOUCHPAD_GAIN: f32 = 1.3;
-const WHEEL_GAIN: f32 = 3.0;
+pub(crate) const WHEEL_GAIN: f32 = 3.0;
 
 #[derive(Default)]
 pub(crate) struct Scroll {
@@ -16,99 +16,12 @@ pub(crate) struct Scroll {
     phased: bool,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn wheel_is_eased_and_preserves_distance() {
-        let mut scroll = Scroll::default();
-        let first = scroll.step((
-            Vec2::new(0.0, 40.0),
-            0.0,
-            0.016,
-            false,
-            true,
-            false,
-            false,
-            false,
-        ));
-        assert!(first.y > 0.0 && first.y < 120.0);
-        let mut total = first.y;
-        for frame in 1..100 {
-            total += scroll
-                .step((
-                    Vec2::ZERO,
-                    frame as f64 * 0.016,
-                    0.016,
-                    false,
-                    false,
-                    false,
-                    false,
-                    false,
-                ))
-                .y;
-        }
-        assert!((total - 120.0).abs() < 0.01);
-        assert!(!scroll.moving());
-    }
-
-    #[test]
-    fn touchpad_glides_on_release_and_brakes_on_new_touch() {
-        let mut scroll = Scroll::default();
-        let raw = Vec2::new(0.0, 12.0);
-        assert_eq!(
-            scroll.step((raw, 0.0, 0.016, true, false, true, false, false)),
-            raw * TOUCHPAD_GAIN
-        );
-        scroll.step((Vec2::ZERO, 0.016, 0.016, true, false, false, true, false));
-        let first = scroll.step((Vec2::ZERO, 0.032, 0.016, false, false, false, false, false));
-        let next = scroll.step((Vec2::ZERO, 0.048, 0.016, false, false, false, false, false));
-        assert!(first.y > next.y && next.y > 0.0);
-        assert_eq!(
-            scroll.step((Vec2::ZERO, 0.05, 0.016, true, false, true, false, false)),
-            Vec2::ZERO
-        );
-        assert!(!scroll.moving());
-        assert_eq!(
-            scroll.step((Vec2::ZERO, 0.06, 0.016, false, false, false, false, false)),
-            Vec2::ZERO
-        );
-        assert_eq!(
-            scroll.step((Vec2::ZERO, 0.064, 0.016, false, false, false, false, true)),
-            Vec2::ZERO
-        );
-        assert!(!scroll.moving());
-    }
-
-    #[test]
-    fn resting_fingers_do_not_start_or_restart_a_glide() {
-        let mut scroll = Scroll::default();
-        scroll.step((
-            Vec2::new(0.0, 12.0),
-            0.0,
-            0.016,
-            true,
-            false,
-            true,
-            false,
-            false,
-        ));
-        assert_eq!(
-            scroll.step((Vec2::ZERO, 0.2, 0.016, false, false, false, false, false)),
-            Vec2::ZERO
-        );
-        scroll.step((Vec2::ZERO, 0.3, 0.016, true, false, false, true, false));
-        assert!(!scroll.moving());
-    }
-}
-
 impl Scroll {
     pub(crate) fn moving(&self) -> bool {
         self.pending.length() > 0.1 || self.gliding
     }
 
-    pub(crate) fn from_trackpad(&self) -> bool {
+    pub(crate) fn is_trackpad(&self) -> bool {
         self.trackpad
     }
 
@@ -244,5 +157,92 @@ impl Scroll {
             }
         }
         delta
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wheel_is_eased_and_preserves_distance() {
+        let mut scroll = Scroll::default();
+        let first = scroll.step((
+            Vec2::new(0.0, 40.0),
+            0.0,
+            0.016,
+            false,
+            true,
+            false,
+            false,
+            false,
+        ));
+        assert!(first.y > 0.0 && first.y < 120.0);
+        let mut total = first.y;
+        for frame in 1..100 {
+            total += scroll
+                .step((
+                    Vec2::ZERO,
+                    frame as f64 * 0.016,
+                    0.016,
+                    false,
+                    false,
+                    false,
+                    false,
+                    false,
+                ))
+                .y;
+        }
+        assert!((total - 120.0).abs() < 0.01);
+        assert!(!scroll.moving());
+    }
+
+    #[test]
+    fn touchpad_glides_on_release_and_brakes_on_new_touch() {
+        let mut scroll = Scroll::default();
+        let raw = Vec2::new(0.0, 12.0);
+        assert_eq!(
+            scroll.step((raw, 0.0, 0.016, true, false, true, false, false)),
+            raw * TOUCHPAD_GAIN
+        );
+        scroll.step((Vec2::ZERO, 0.016, 0.016, true, false, false, true, false));
+        let first = scroll.step((Vec2::ZERO, 0.032, 0.016, false, false, false, false, false));
+        let next = scroll.step((Vec2::ZERO, 0.048, 0.016, false, false, false, false, false));
+        assert!(first.y > next.y && next.y > 0.0);
+        assert_eq!(
+            scroll.step((Vec2::ZERO, 0.05, 0.016, true, false, true, false, false)),
+            Vec2::ZERO
+        );
+        assert!(!scroll.moving());
+        assert_eq!(
+            scroll.step((Vec2::ZERO, 0.06, 0.016, false, false, false, false, false)),
+            Vec2::ZERO
+        );
+        assert_eq!(
+            scroll.step((Vec2::ZERO, 0.064, 0.016, false, false, false, false, true)),
+            Vec2::ZERO
+        );
+        assert!(!scroll.moving());
+    }
+
+    #[test]
+    fn resting_fingers_do_not_start_or_restart_a_glide() {
+        let mut scroll = Scroll::default();
+        scroll.step((
+            Vec2::new(0.0, 12.0),
+            0.0,
+            0.016,
+            true,
+            false,
+            true,
+            false,
+            false,
+        ));
+        assert_eq!(
+            scroll.step((Vec2::ZERO, 0.2, 0.016, false, false, false, false, false)),
+            Vec2::ZERO
+        );
+        scroll.step((Vec2::ZERO, 0.3, 0.016, true, false, false, true, false));
+        assert!(!scroll.moving());
     }
 }

@@ -61,7 +61,7 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui, chat: &str, mut include_med
         }
         if ui
             .add_enabled_ui(!busy, |ui| {
-                theme::pill_button(ui, &palette, &gettext(locale, "Export"), true)
+                theme::pill_button(ui, &palette, &gettext(locale, "Export…"), true)
             })
             .inner
             .clicked()

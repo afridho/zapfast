@@ -21,6 +21,7 @@ pub mod autostart;
 pub mod backdrop;
 pub mod backend;
 pub mod bidi;
+pub mod blocking;
 pub mod call_audio;
 pub mod call_diag;
 pub mod call_tones;
@@ -35,6 +36,7 @@ pub mod group_admin;
 pub mod i18n;
 pub mod image_cache;
 pub mod image_preview;
+pub mod lottie;
 #[cfg(target_os = "macos")]
 pub mod macos;
 pub mod markup;

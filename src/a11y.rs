@@ -260,6 +260,10 @@ pub fn content_description(locale: Locale, content: &Content, text: &str) -> Str
             ],
         ),
         Content::LiveLocation { .. } => gettext(locale, "Live location ended").into_owned(),
+        Content::DisappearingTimer { seconds } => {
+            crate::util::disappearing_line(locale, Some(*seconds))
+                .unwrap_or_else(|| gettext(locale, "Disappearing messages").into_owned())
+        }
         Content::Revoked => gettext(locale, "This message was deleted").into_owned(),
         Content::Unsupported { what } => fill(
             &gettext(locale, "Unsupported message ({what})"),
@@ -290,6 +294,7 @@ pub fn content_description(locale: Locale, content: &Content, text: &str) -> Str
             status,
             duration,
             group,
+            participants,
         } => call_description(
             locale,
             &crate::ui::calls::Entry {
@@ -298,13 +303,15 @@ pub fn content_description(locale: Locale, content: &Content, text: &str) -> Str
                 status: *status,
                 duration: *duration,
                 group: *group,
+                participants: *participants,
             },
         ),
     }
 }
 
 /// A call in a chat, as its bubble draws it: the title, then the call's
-/// length or what became of it.
+/// length or what became of it. A group call's bubble draws no participant
+/// count, so the description leaves out the one the entry may carry.
 pub fn call_description(locale: Locale, entry: &crate::ui::calls::Entry) -> String {
     let mut parts = vec![entry.title(locale)];
     parts.extend(entry.detail(locale));
@@ -814,6 +821,7 @@ mod tests {
             status,
             duration,
             group: false,
+            participants: None,
         };
         assert_eq!(
             call_description(en, &call(false, CallStatus::Missed, 0)),
@@ -837,6 +845,7 @@ mod tests {
             status: CallStatus::Declined,
             duration: 0,
             group: true,
+            participants: None,
         };
         assert_eq!(
             content_description(en, &content, ""),

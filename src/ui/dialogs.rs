@@ -48,6 +48,10 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 Dialog::ExportChat { .. } => {
                     380.0_f32.min((ui.ctx().content_rect().width() - 48.0).max(180.0))
                 }
+                Dialog::ConfirmBlock { .. } => 380.0,
+                Dialog::BlockedContacts => {
+                    420.0_f32.min((ui.ctx().content_rect().width() - 48.0).max(180.0))
+                }
                 Dialog::ConfirmDeleteMessage { .. } | Dialog::ConfirmDeleteSelection { .. } => {
                     380.0
                 }
@@ -101,6 +105,10 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                     chat,
                     include_media,
                 } => super::chat_export::show(app, ui, &chat, include_media),
+                Dialog::BlockedContacts => super::blocking::list(app, ui),
+                Dialog::ConfirmBlock { chat, blocked, .. } => {
+                    super::blocking::confirmation(app, ui, &chat, blocked)
+                }
                 Dialog::ConfirmDeleteMessage {
                     chat,
                     message,
@@ -552,7 +560,10 @@ pub(super) fn contact_choices(app: &App, needle: &str) -> Vec<crate::model::Cont
                 && app.me.as_deref() != Some(contact.id.as_str())
                 && !app.chat(&contact.id).is_some_and(|chat| chat.locked)
                 && (needle.is_empty()
-                    || crate::util::search_key(&app.display_name(&contact.id)).contains(needle)
+                    || crate::util::search_matches(
+                        &crate::util::search_key(&app.display_name(&contact.id)),
+                        needle,
+                    )
                     || crate::model::phone_of(&contact.id)
                         .is_some_and(|phone| phone.contains(needle)))
         })
@@ -645,7 +656,7 @@ fn forward(app: &mut App, ui: &mut egui::Ui, messages: &[String]) {
     let mut chats: Vec<_> = app
         .chats
         .iter()
-        .filter(|chat| forwardable(chat))
+        .filter(|chat| forwardable(chat) && !app.blocklist.contains(&chat.id))
         .filter(|chat| {
             needle.is_empty()
                 || app.chat_title(chat).to_lowercase().contains(&needle)
@@ -1593,12 +1604,12 @@ fn confirm_remove(app: &mut App, ui: &mut egui::Ui, id: crate::model::AccountId)
     );
 }
 
-/// A confirmation for something that cannot be undone: the question, what it
-/// destroys (the first paragraph in the text colour, any after it as a smaller
+/// A confirmation for a destructive or sensitive action: the question, its
+/// consequences (the first paragraph in the text colour, any after it as a smaller
 /// note), then Cancel and a red button that queues `action` and closes the
 /// dialog. Callers pass translated text. Enter is deliberately not bound: a
 /// stray keypress must not destroy anything.
-fn confirm_destructive(
+pub(super) fn confirm_destructive(
     app: &mut App,
     ui: &mut egui::Ui,
     heading: &str,
@@ -1620,7 +1631,13 @@ fn confirm_destructive(
     let cancel = crate::i18n::gettext(app.locale, "Cancel");
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if danger_button(ui, app, button).clicked() {
+            let enabled = !matches!(app.dialog, Some(Dialog::ConfirmBlock { .. }))
+                || (app.is_connected() && app.blocklist.editable());
+            if ui
+                .add_enabled_ui(enabled, |ui| danger_button(ui, app, button))
+                .inner
+                .clicked()
+            {
                 app.actions.extend(actions);
                 app.actions.push(Action::CloseDialog);
             }

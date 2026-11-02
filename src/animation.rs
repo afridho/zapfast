@@ -1,6 +1,6 @@
-//! Playback for WhatsApp GIFs, animated WebP stickers, and GIF files.
+//! Playback for WhatsApp GIFs, animated WebP and Lottie stickers, and downloaded media posters.
 //!
-//! Decoding runs off the UI thread. WebP, GIF, and H.264 MP4 decode in-process;
+//! Decoding runs off the UI thread. Photos, GIFs, and H.264 MP4 decode in-process;
 //! other MP4 codecs use `ffmpeg` when available. Idle animations are removed
 //! from memory, and a paused one keeps only its first frame, the poster, until
 //! it plays.
@@ -24,6 +24,11 @@ const IDLE: Duration = Duration::from_secs(20);
 const VISIBLE: Duration = Duration::from_millis(500);
 /// Maximum concurrent decoders.
 const MAX_DECODERS: usize = 2;
+/// Bound source pixels before either poster decoder allocates its full canvas.
+const MAX_IMAGE_SIDE: u32 = 4096;
+/// Encoded sources and each image decoder use at most this allocation allowance.
+const MAX_IMAGE_BYTES: u64 = 64 * 1024 * 1024;
+
 /// Global texture-frame budget. Least-recently-used animations are removed first.
 const MAX_RESIDENT_FRAMES: usize = 450;
 
@@ -112,7 +117,7 @@ fn inbox_for(ctx: &egui::Context, scope: egui::Id) -> Inbox {
     })
 }
 
-/// Current display state for an animated file.
+/// Current display state for a media file.
 pub enum Frame {
     /// Current animation frame.
     Ready(TextureHandle),
@@ -330,6 +335,31 @@ pub fn forget(ctx: &egui::Context, path: &Path) {
     animations.idle.remove(path);
 }
 
+/// Drops everything a [`frame_with_cache`] scope holds. The idle sweep runs
+/// only inside `frame`, so a scope whose only caller stopped drawing would
+/// otherwise keep its textures. A decode still running delivers to the inbox
+/// and is dropped by the next call, which is why a closed view calls this on
+/// every pass. It takes two uncontended locks when there is nothing to drop.
+pub fn release(ctx: &egui::Context, scope: egui::Id) {
+    let cache = cache_for(ctx, scope);
+    let inbox = inbox_for(ctx, scope);
+    let mut animations = cache.0.lock().unwrap_or_else(|p| p.into_inner());
+    animations.entries.clear();
+    animations.idle.clear();
+    inbox.0.lock().unwrap_or_else(|p| p.into_inner()).clear();
+}
+
+/// How many files a scope holds, with one placed there first when `seed`.
+#[cfg(test)]
+pub(crate) fn resident(ctx: &egui::Context, scope: egui::Id, seed: Option<&Path>) -> usize {
+    let cache = cache_for(ctx, scope);
+    let mut animations = cache.0.lock().unwrap_or_else(|p| p.into_inner());
+    if let Some(path) = seed {
+        animations.entries.insert(path.to_path_buf(), Entry::Failed);
+    }
+    animations.entries.len()
+}
+
 /// Whether a decoder thread could be started.
 enum Start {
     Started,
@@ -412,9 +442,65 @@ fn decode(path: &Path, limit: usize) -> Option<Decoded> {
         .map(|extension| extension.to_ascii_lowercase())
         .unwrap_or_default();
     match extension.as_str() {
+        "jpg" | "jpeg" | "png" => decode_still(path),
+        "webp" if limit == 1 => {
+            decode_image(path, &extension, limit).or_else(|| decode_still(path))
+        }
         "webp" | "gif" => decode_image(path, &extension, limit),
+        "was" => crate::lottie::decode(path, limit).map(|frames| Decoded { frames }),
         _ => decode_video(path, limit),
     }
+}
+
+/// Strict source dimensions plus a decoder allocation allowance, applied before decoding.
+fn image_limits() -> image::Limits {
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(MAX_IMAGE_SIDE);
+    limits.max_image_height = Some(MAX_IMAGE_SIDE);
+    limits.max_alloc = Some(MAX_IMAGE_BYTES);
+    limits
+}
+
+/// Read a bounded encoded source even if its file grows while it is being read.
+fn image_source(path: &Path) -> Option<Vec<u8>> {
+    let file = std::fs::File::open(path).ok()?;
+    if file.metadata().ok()?.len() > MAX_IMAGE_BYTES {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    file.take(MAX_IMAGE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    (bytes.len() as u64 <= MAX_IMAGE_BYTES).then_some(bytes)
+}
+
+/// Header parsing enforces dimensions before the image or WebP canvas is allocated.
+fn image_reader(bytes: &[u8]) -> Option<image::ImageReader<std::io::Cursor<&[u8]>>> {
+    let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes))
+        .with_guessed_format()
+        .ok()?;
+    reader.limits(image_limits());
+    Some(reader)
+}
+
+/// A downloaded photo's small poster, built on the decoder thread, never the UI thread.
+fn decode_still(path: &Path) -> Option<Decoded> {
+    use image::ImageDecoder;
+    let bytes = image_source(path)?;
+    let mut decoder = image_reader(&bytes)?.into_decoder().ok()?;
+    let orientation = decoder.orientation().ok()?;
+    let mut limits = image_limits();
+    limits.reserve(decoder.total_bytes()).ok()?;
+    decoder.set_limits(limits).ok()?;
+    let mut image = image::DynamicImage::from_decoder(decoder).ok()?;
+    if image.width() > MAX_WIDTH || image.height() > MAX_WIDTH {
+        image = image.thumbnail(MAX_WIDTH, MAX_WIDTH);
+    }
+    image.apply_orientation(orientation);
+    let image = image.to_rgba8();
+    Some(Decoded {
+        frames: vec![(to_color_image(&image), Duration::ZERO)],
+    })
 }
 
 /// Decodes animated GIF with the `image` crate.
@@ -442,8 +528,11 @@ fn decode_image(path: &Path, extension: &str, limit: usize) -> Option<Decoded> {
 /// Decodes animated WebP with libwebp. It returns complete canvas frames,
 /// unlike the `image` decoder, which did not apply frame disposal correctly.
 fn decode_webp(path: &Path, limit: usize) -> Option<Decoded> {
-    let bytes = std::fs::read(path).ok()?;
+    let bytes = image_source(path)?;
     let announced = webp_moves(&bytes);
+    // libwebp allocates its canvas in Decoder::new, so inspect with the
+    // dimension-limited header reader first, including for animated files.
+    image_reader(&bytes)?.into_dimensions().ok()?;
     let decoder = webp_animation::Decoder::new(&bytes).ok()?;
     let (width, height) = decoder.dimensions();
     let mut decoded = Vec::new();
@@ -453,6 +542,13 @@ fn decode_webp(path: &Path, limit: usize) -> Option<Decoded> {
         let image = image::RgbaImage::from_raw(width, height, frame.data().to_vec())?;
         let delay = (i64::from(frame.timestamp()) - previous).max(20) as u64;
         previous = i64::from(frame.timestamp());
+        let image = if limit == 1 && (width > MAX_WIDTH || height > MAX_WIDTH) {
+            image::DynamicImage::ImageRgba8(image)
+                .thumbnail(MAX_WIDTH, MAX_WIDTH)
+                .to_rgba8()
+        } else {
+            image
+        };
         decoded.push((to_color_image(&image), Duration::from_millis(delay)));
     }
     // A single frame is a still for the static-image path, unless the file
@@ -865,6 +961,175 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn small_posters_keep_their_original_dimensions() {
+        let dir = tempfile::tempdir().unwrap();
+        for extension in ["jpg", "png", "webp"] {
+            let path = dir.path().join(format!("small.{extension}"));
+            image::RgbImage::from_pixel(64, 48, image::Rgb([80, 120, 180]))
+                .save(&path)
+                .unwrap();
+            assert_eq!(decode(&path, 1).unwrap().frames[0].0.size, [64, 48]);
+        }
+        let path = dir.path().join("animated.webp");
+        let mut encoder = webp_animation::Encoder::new((64, 48)).unwrap();
+        for (index, shade) in [40, 200].into_iter().enumerate() {
+            let frame = image::RgbaImage::from_pixel(64, 48, image::Rgba([shade, 0, 0, 255]));
+            encoder.add_frame(&frame, index as i32 * 100).unwrap();
+        }
+        std::fs::write(&path, &*encoder.finalize(200).unwrap()).unwrap();
+        assert_eq!(decode(&path, 1).unwrap().frames[0].0.size, [64, 48]);
+    }
+
+    /// Tall animated posters stay bounded while playback retains its previous resolution.
+    #[test]
+    fn animated_webp_posters_bound_both_sides_without_shrinking_playback() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("tall.webp");
+        let mut encoder = webp_animation::Encoder::new((320, 4096)).unwrap();
+        for (index, shade) in [40, 200].into_iter().enumerate() {
+            let frame = image::RgbaImage::from_pixel(320, 4096, image::Rgba([shade, 0, 0, 255]));
+            encoder.add_frame(&frame, index as i32 * 100).unwrap();
+        }
+        std::fs::write(&path, &*encoder.finalize(200).unwrap()).unwrap();
+        let poster = decode(&path, 1).unwrap();
+        assert_eq!(poster.frames.len(), 1);
+        let size = poster.frames[0].0.size;
+        assert!(size.into_iter().all(|side| side <= MAX_WIDTH as usize));
+        assert!((size[0] as f32 / size[1] as f32 - 320.0 / 4096.0).abs() < 0.005);
+        let playback = decode(&path, MAX_FRAMES).unwrap();
+        assert_eq!(playback.frames.len(), 2);
+        assert_eq!(playback.frames[0].0.size, [320, 4096]);
+        assert_eq!(poster.frames[0].1, playback.frames[0].1);
+    }
+
+    /// JPEG orientation rotates the poster's pixels, not just its reported dimensions.
+    #[test]
+    fn downloaded_jpeg_poster_applies_exif_orientation() {
+        use image::ImageEncoder;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("rotated.jpg");
+        let image = image::RgbImage::from_fn(800, 400, |x, _| {
+            image::Rgb(if x < 400 {
+                [240, 10, 10]
+            } else {
+                [10, 10, 240]
+            })
+        });
+        let mut bytes = Vec::new();
+        let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, 95);
+        // Little-endian TIFF IFD: one SHORT Orientation entry, value 6 (90 degrees clockwise).
+        encoder
+            .set_exif_metadata(vec![
+                0x49, 0x49, 42, 0, 8, 0, 0, 0, 1, 0, 0x12, 1, 3, 0, 1, 0, 0, 0, 6, 0, 0, 0, 0, 0,
+                0, 0,
+            ])
+            .unwrap();
+        encoder
+            .encode(&image, 800, 400, image::ExtendedColorType::Rgb8)
+            .unwrap();
+        std::fs::write(&path, bytes).unwrap();
+        let decoded = decode(&path, 1).unwrap();
+        let poster = &decoded.frames[0].0;
+        assert_eq!(poster.size, [160, 320]);
+        let top = poster.pixels[80 * 160 + 80];
+        let bottom = poster.pixels[240 * 160 + 80];
+        assert!(top.r() > 200 && top.b() < 30, "red rotates to the top");
+        assert!(
+            bottom.b() > 200 && bottom.r() < 30,
+            "blue rotates to the bottom"
+        );
+    }
+
+    /// Oversized PNG and animated WebP headers fail the limit check before pixel decoding.
+    #[test]
+    fn oversized_poster_sources_are_rejected_before_decoding() {
+        let dir = tempfile::tempdir().unwrap();
+        let png = dir.path().join("huge.png");
+        image::RgbImage::from_pixel(8, 8, image::Rgb([80, 120, 180]))
+            .save(&png)
+            .unwrap();
+        let mut bytes = std::fs::read(&png).unwrap();
+        bytes[16..20].copy_from_slice(&10_000_u32.to_be_bytes());
+        bytes[20..24].copy_from_slice(&10_000_u32.to_be_bytes());
+        let mut crc = u32::MAX;
+        for byte in &bytes[12..29] {
+            crc ^= u32::from(*byte);
+            for _ in 0..8 {
+                crc = (crc >> 1) ^ ((crc & 1).wrapping_neg() & 0xedb8_8320);
+            }
+        }
+        bytes[29..33].copy_from_slice(&(!crc).to_be_bytes());
+        std::fs::write(&png, &bytes).unwrap();
+        let webp = animated_webp(dir.path(), "huge.webp", 2);
+        let mut webp_bytes = std::fs::read(&webp).unwrap();
+        assert_eq!(&webp_bytes[12..16], b"VP8X");
+        for start in [24, 27] {
+            webp_bytes[start..start + 3].copy_from_slice(&9_999_u32.to_le_bytes()[..3]);
+        }
+        std::fs::write(&webp, &webp_bytes).unwrap();
+        for encoded in [&bytes, &webp_bytes] {
+            let dimensions = image::ImageReader::new(std::io::Cursor::new(encoded))
+                .with_guessed_format()
+                .unwrap()
+                .into_dimensions()
+                .unwrap();
+            assert_eq!(dimensions, (10_000, 10_000), "a valid oversized header");
+            assert!(
+                matches!(
+                    image_reader(encoded).unwrap().into_decoder(),
+                    Err(image::ImageError::Limits(_))
+                ),
+                "rejected by limits before decoding pixels"
+            );
+        }
+        assert!(decode_still(&png).is_none());
+        assert!(decode_webp(&webp, 1).is_none());
+        let oversized_file = dir.path().join("too-many-bytes.png");
+        std::fs::File::create(&oversized_file)
+            .unwrap()
+            .set_len(MAX_IMAGE_BYTES + 1)
+            .unwrap();
+        assert!(image_source(&oversized_file).is_none());
+    }
+
+    #[test]
+    fn downloaded_photos_have_small_idle_posters() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut paths = Vec::new();
+        for (extension, width, height) in [("jpg", 900, 300), ("png", 300, 900), ("webp", 900, 900)]
+        {
+            let path = dir.path().join(format!("photo.{extension}"));
+            image::RgbImage::from_pixel(width, height, image::Rgb([80, 120, 180]))
+                .save(&path)
+                .unwrap();
+            paths.push(path);
+        }
+        let ctx = egui::Context::default();
+        settle(&ctx, &paths, false);
+        for shown in draw_all(&ctx, &paths, false) {
+            let Frame::Ready(texture) = shown else {
+                panic!("a photo poster")
+            };
+            assert!(
+                texture
+                    .size()
+                    .into_iter()
+                    .all(|side| side <= MAX_WIDTH as usize)
+            );
+        }
+        let cache = cache(&ctx);
+        let cached = cache.0.lock().unwrap();
+        for path in &paths {
+            let Some(Entry::Ready(playing)) = cached.entries.get(path) else {
+                panic!("cached poster")
+            };
+            assert_eq!(playing.frames.len(), 1);
+            assert!(!playing.animating, "a thumbnail never starts playback");
+        }
+        assert!(decode_still(&dir.path().join("missing.jpg")).is_none());
+    }
+
     /// A video being sent gets its picture, size, and length from its bytes.
     #[test]
     fn a_video_says_its_size_and_length_and_shows_a_frame() {
@@ -981,25 +1246,23 @@ mod tests {
             .iter()
             .map(|(_, delay)| delay.as_millis())
             .collect();
-        // Every sample decodes despite the B-frames, and the frames are
-        // 100, 200, and 300 ms apart in display order. Decode order would
-        // put the durations in a different order. The last frame has no
-        // successor, so its trailing duration comes from the track end and
-        // varies between ffmpeg builds; only the frames before it are
-        // checked for the display-order pattern.
-        assert_eq!(decoded.frames.len(), 15);
+        // The frames are 100, 200, and 300 ms apart in display order.
+        // Decode order would put the durations in a different order.
         assert_eq!(
-            delays[..14],
+            &delays[..14],
             [
                 100, 200, 300, 100, 200, 300, 100, 200, 300, 100, 200, 300, 100, 200
             ]
         );
-        assert!(
-            (20..=1000).contains(&delays[14]),
-            "the last frame keeps a sane duration: {}",
-            delays[14]
-        );
+        assert_eq!(decoded.frames.len(), 15);
         assert_eq!(decoded.frames[0].0.size, [64, 48]);
+        let total: Duration = decoded.frames.iter().map(|(_, delay)| *delay).sum();
+        // FFmpeg versions assign either 100 or 300 ms to the last sample.
+        // Check against the generated track, not an encoder-version guess.
+        let file = std::fs::File::open(&path).unwrap();
+        let mp4 = mp4::Mp4Reader::read_header(&file, file.metadata().unwrap().len()).unwrap();
+        let duration = mp4.tracks().values().next().unwrap().duration();
+        assert_eq!(total, duration, "the whole generated track plays");
         let _ = std::fs::remove_dir_all(dir);
     }
 
@@ -1509,6 +1772,53 @@ mod tests {
                 > MAX_RESIDENT_FRAMES,
             "the budget gives way to what is on screen"
         );
+    }
+
+    /// Releasing a scope frees its textures and anything still to upload,
+    /// and leaves the shared cache alone.
+    #[test]
+    fn releasing_a_scope_drops_its_frames_and_only_its_own() {
+        let ctx = egui::Context::default();
+        let scope = egui::Id::new("released");
+        let default = egui::Id::new("default");
+        let decoded = || Decoded {
+            frames: vec![(
+                ColorImage::new([1, 1], vec![egui::Color32::WHITE]),
+                Duration::from_millis(50),
+            )],
+        };
+        let path = PathBuf::from("released.gif");
+        for id in [scope, default] {
+            let delivery = (path.clone(), Some(decoded()), true);
+            inbox_for(&ctx, id).0.lock().unwrap().push(delivery);
+        }
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(200.0, 200.0),
+                )),
+                ..Default::default()
+            },
+            |ui| {
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::vec2(50.0, 50.0), egui::Sense::hover());
+                assert!(matches!(
+                    frame_with_cache(ui, &path, rect, true, scope),
+                    Frame::Ready(_)
+                ));
+                assert!(matches!(frame(ui, &path, rect, true), Frame::Ready(_)));
+            },
+        );
+        output.textures_delta.clear();
+        let resident = |id| cache_for(&ctx, id).0.lock().unwrap().entries.len();
+        assert_eq!((resident(scope), resident(default)), (1, 1));
+
+        let late = (path.clone(), Some(decoded()), true);
+        inbox_for(&ctx, scope).0.lock().unwrap().push(late);
+        release(&ctx, scope);
+        assert_eq!((resident(scope), resident(default)), (0, 1));
+        assert!(inbox_for(&ctx, scope).0.lock().unwrap().is_empty());
     }
 
     /// WhatsApp stickers can carry their EXIF metadata ahead of the animation.

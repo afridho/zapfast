@@ -38,7 +38,9 @@ check_prefix() {
   bash "$script_dir/install-user.sh" "$fake" "$prefix" >/dev/null
   local entry="$prefix/share/applications/zapfast.desktop"
   test -s "$entry"
-  test -s "$prefix/share/icons/hicolor/scalable/apps/zapfast.svg"
+  test -s "$prefix/share/icons/hicolor/512x512/apps/zapfast.png"
+  test ! -e "$prefix/share/icons/hicolor/scalable/apps/zapfast.svg"
+  cmp "$script_dir/icons/app-icon.png" "$prefix/share/icons/hicolor/512x512/apps/zapfast.png"
 
   # `%U` stays after the quoted path: it is what passes a `whatsapp://` link
   # to the binary, which the MimeType line claims this entry handles.
@@ -90,17 +92,20 @@ grep -qxF "Exec=\"$work/relative/bin/zapfast\" %U" "$work/relative/share/applica
 # the icons directory's root by an earlier version.
 reinstall="$work/reinstall"
 mkdir -p "$reinstall/share/icons"
+mkdir -p "$reinstall/share/icons/hicolor/scalable/apps"
 printf 'stale\n' > "$reinstall/share/icons/zapfast.svg"
+printf 'stale\n' > "$reinstall/share/icons/hicolor/scalable/apps/zapfast.svg"
 bash "$script_dir/install-user.sh" "$fake" "$reinstall" >/dev/null
 bash "$script_dir/install-user.sh" "$fake" "$reinstall" >/dev/null
-test -s "$reinstall/share/icons/hicolor/scalable/apps/zapfast.svg"
+test -s "$reinstall/share/icons/hicolor/512x512/apps/zapfast.png"
+test ! -e "$reinstall/share/icons/hicolor/scalable/apps/zapfast.svg"
 test ! -e "$reinstall/share/icons/zapfast.svg" || {
   echo "a stale root-level icon was left behind" >&2
   exit 1
 }
 # The installed icon is world-readable, so a launcher run under a strict umask
 # can still read it.
-perms=$(stat -c '%a' "$reinstall/share/icons/hicolor/scalable/apps/zapfast.svg")
+perms=$(stat -c '%a' "$reinstall/share/icons/hicolor/512x512/apps/zapfast.png")
 [[ "$perms" == 644 ]] || { echo "icon mode is $perms, expected 644" >&2; exit 1; }
 
 echo "install-user.sh wrote a valid, escaped launcher entry for every prefix."

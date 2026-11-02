@@ -1400,11 +1400,10 @@ fn vertical_fade(ui: &Ui, rect: Rect, top: Color32, bottom: Color32) {
     ui.painter().add(egui::Shape::mesh(mesh));
 }
 
-/// A horizontal row of chips that scrolls when it overflows. The scroll bar
-/// is the app's floating one: hidden at rest, it shows over the bottom of the
-/// chips only while the pointer is on the row, and takes no room of its own.
-/// A plain mouse wheel scrolls the row too, since most mice have no sideways
-/// wheel.
+/// A horizontal row of chips that scrolls when it overflows. It draws no
+/// scroll bar, which has no room of its own and would lie over the chips: the
+/// clipped chip and the edge's fade say there is more. A plain mouse wheel
+/// scrolls the row, since most mice have no sideways wheel.
 pub fn chip_scroll_row<R>(
     ui: &mut Ui,
     id_salt: &str,
@@ -1416,6 +1415,7 @@ pub fn chip_scroll_row<R>(
             .id_salt(id_salt)
             .animated(false)
             .auto_shrink([false, true])
+            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
             .show(ui, add_contents)
     })
     .inner

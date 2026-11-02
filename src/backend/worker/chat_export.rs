@@ -88,15 +88,6 @@ impl Worker {
             });
             return;
         }
-        // No save picker: the export goes straight to the app's default
-        // download folder (Settings, else the system Downloads directory),
-        // named after the chat, with a numbered suffix so it never
-        // overwrites an earlier export.
-        let title = self
-            .contact_name(&chat)
-            .or_else(|| self.archive.chat(&chat).ok().flatten().map(|c| c.name))
-            .unwrap_or_else(|| self.chat_name(&chat, None));
-        let folder = self.export_folder();
         let cancelled = Arc::new(AtomicBool::new(false));
         self.chat_export.job = Some(Job {
             request,
@@ -106,26 +97,25 @@ impl Worker {
         });
         let commands = self.commands.clone();
         tokio::task::spawn_blocking(move || {
-            let target = folder.and_then(|folder| {
-                export_target(&folder, &title, include_media).or_else(|| {
-                    log::warn!("could not create the export folder; export cancelled");
-                    None
-                })
-            });
+            let extension = if include_media { "zip" } else { "txt" };
+            let target = rfd::FileDialog::new()
+                .set_title("Export chat")
+                .set_file_name(format!("Chat export.{extension}"))
+                .add_filter(
+                    if include_media {
+                        "Chat with attachments"
+                    } else {
+                        "Text file"
+                    },
+                    &[extension],
+                )
+                .save_file();
             let _ = commands.send(Command::ChatExportTarget {
                 request,
                 include_media,
                 target,
             });
         });
-    }
-
-    /// The folder exports are written to: the chosen download folder, else
-    /// the system Downloads directory.
-    fn export_folder(&self) -> Option<PathBuf> {
-        self.download_folder.clone().or_else(|| {
-            directories::UserDirs::new().and_then(|dirs| dirs.download_dir().map(Path::to_path_buf))
-        })
     }
 
     /// Accepts only the current picker result, rechecks permissions and starts a read-only export.
@@ -240,53 +230,10 @@ impl Worker {
     }
 }
 
-/// Builds an export path inside `folder`, named after the chat, with the
-/// right extension and a numbered suffix when a file with that name already
-/// exists, so an export never overwrites an earlier one. Creates the folder
-/// if it is missing; returns `None` when it cannot be used.
-fn export_target(folder: &Path, title: &str, include_media: bool) -> Option<PathBuf> {
-    if std::fs::create_dir_all(folder).is_err() {
-        return None;
-    }
-    let extension = if include_media { "zip" } else { "txt" };
-    let stem = crate::archive::chat_export::safe_name(&format!("Chat export - {title}"));
-    for attempt in 0..1000 {
-        let name = if attempt == 0 {
-            format!("{stem}.{extension}")
-        } else {
-            format!("{stem} ({attempt}).{extension}")
-        };
-        let candidate = folder.join(name);
-        if !candidate.exists() {
-            return Some(candidate);
-        }
-    }
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::super::receipt_tests;
     use super::*;
-
-    /// The default target is named after the chat and never overwrites an
-    /// earlier export: a taken name gets a numbered suffix.
-    #[test]
-    fn the_default_export_target_avoids_overwriting() {
-        let dir = tempfile::tempdir().unwrap();
-        let folder = dir.path().join("Downloads");
-        let first = export_target(&folder, "Ada Lovelace", false).unwrap();
-        assert_eq!(first.file_name().unwrap(), "Chat export - Ada Lovelace.txt");
-        std::fs::write(&first, b"").unwrap();
-        let second = export_target(&folder, "Ada Lovelace", false).unwrap();
-        assert_eq!(
-            second.file_name().unwrap(),
-            "Chat export - Ada Lovelace (1).txt"
-        );
-        // Unsafe characters in the title are replaced, and ZIP uses .zip.
-        let zip = export_target(&folder, "a/b:c", true).unwrap();
-        assert_eq!(zip.file_name().unwrap(), "Chat export - a_b_c.zip");
-    }
 
     /// A cancelled picker result clears busy state without opening the archive or destination.
     #[test]

@@ -4,7 +4,9 @@ use crate::model::{Chat, ChatId, ChatKind};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::{Duration, Instant};
 
-pub const HISTORY_GAP: Duration = Duration::from_secs(20);
+/// Time between background requests. Each one wakes the phone, and an iPhone
+/// says "Syncing with WhatsApp" for it, so they stay rare (#737).
+pub const HISTORY_GAP: Duration = Duration::from_secs(300);
 /// Pages one chat may be asked for in a session. Without it a chat with a long
 /// history would be drained in one run, and the phone asked for page after
 /// page until it said it had nothing more.
@@ -422,7 +424,7 @@ mod tests {
         assert!(state.finish_history("c", true, now + Duration::from_secs(90)));
         assert_eq!(
             state
-                .next_history(now + Duration::from_secs(110), false)
+                .next_history(now + Duration::from_secs(90) + HISTORY_GAP, false)
                 .as_deref(),
             Some("a"),
             "a chat comes back after its backoff, behind the others"
@@ -467,8 +469,12 @@ mod tests {
             let id = state.next_history(now, false).unwrap();
             state.start_history(id.clone());
             assert!(state.fail_history(&id, now));
-            assert!(state.next_history(now + HISTORY_GAP, false).is_none());
             now += Duration::from_secs(delay);
+            assert!(
+                state
+                    .next_history(now - Duration::from_millis(1), false)
+                    .is_none()
+            );
         }
         assert!(state.next_history(now, false).is_some());
         assert!(state.history_retries.is_empty());
@@ -493,8 +499,8 @@ mod tests {
         assert!(!state.history_retries.contains_key("b"));
         assert_eq!(state.history_retries["a"].failures, 2);
         assert_eq!(
-            state.next_history(now + HISTORY_GAP * 4, false).as_deref(),
-            Some("b")
+            state.history_retries["a"].due,
+            now + HISTORY_GAP * 2 + Duration::from_secs(60)
         );
         assert_eq!(
             state.next_history(now + HISTORY_GAP * 5, false).as_deref(),
@@ -748,7 +754,7 @@ mod tests {
         );
         assert_eq!(
             state
-                .next_history(now + Duration::from_secs(51), false)
+                .next_history(now + Duration::from_secs(30) + HISTORY_GAP, false)
                 .as_deref(),
             Some("a"),
             "and comes back after its backoff"

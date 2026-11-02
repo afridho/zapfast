@@ -53,8 +53,35 @@ pub fn avatar_button(app: &mut App, ui: &mut egui::Ui, size: f32) -> egui::Respo
     let response = response
         .on_hover_text(tooltip)
         .on_hover_cursor(egui::CursorIcon::PointingHand);
+    if let Some(step) = wheel_step(app, ui, &response) {
+        app.actions.push(Action::CycleAccount(step));
+    }
     menu(app, &response);
     response
+}
+
+/// Which way the wheel asks to move among the accounts, with the pointer on
+/// the avatar. A touchpad's gesture and one that began over a pane (a rail
+/// of chats scrolled up to the avatar, say) pass over it.
+fn wheel_step(app: &App, ui: &egui::Ui, response: &egui::Response) -> Option<i8> {
+    if !app.has_several_accounts()
+        || !response.hovered()
+        || app.scrolling.from_trackpad()
+        || app.scroll_route.busy()
+    {
+        return None;
+    }
+    let delta: f32 = ui.input(|input| {
+        input
+            .events
+            .iter()
+            .filter_map(|event| match event {
+                egui::Event::MouseWheel { delta, .. } => Some(delta.y),
+                _ => None,
+            })
+            .sum()
+    });
+    (delta != 0.0).then_some(if delta < 0.0 { 1 } else { -1 })
 }
 
 /// What the switcher lists for one account.
