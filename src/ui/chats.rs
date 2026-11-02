@@ -2225,6 +2225,19 @@ fn context_menu(app: &mut App, ui: &mut egui::Ui, chat: &Chat, palette: &Palette
         app.actions.push(Action::OpenChat(chat.id.clone()));
         app.actions.push(Action::OpenInfo(chat.id.clone()));
     }
+    // Export only reads the local archive, so it also works offline.
+    if widgets::menu_item_enabled(
+        ui,
+        palette,
+        Some(Icon::Download),
+        &crate::i18n::gettext(locale, "Export chat"),
+        !chat.locked && app.chat_export.is_none(),
+    ) {
+        app.actions.push(Action::ShowDialog(Dialog::ExportChat {
+            chat: chat.id.clone(),
+            include_media: false,
+        }));
+    }
     // Blocking, clearing and deleting reach WhatsApp and need a connection.
     let connected = app.is_connected();
     super::blocking::menu(app, ui, &chat.id);
@@ -2505,7 +2518,11 @@ mod tests {
     }
 
     fn click_clear_chat_in_the_list_menu(app: &mut App, chat: &Chat) {
-        let label = crate::i18n::gettext(app.locale, "Clear chat");
+        click_item_in_the_list_menu(app, chat, "Clear chat");
+    }
+
+    fn click_item_in_the_list_menu(app: &mut App, chat: &Chat, label: &'static str) {
+        let label = crate::i18n::gettext(app.locale, label);
         let ctx = egui::Context::default();
         app.attach(&ctx);
         let mut frame = |events| {
@@ -2553,7 +2570,7 @@ mod tests {
                 }
                 _ => None,
             })
-            .expect("the translated Clear chat item is visible in the chat menu");
+            .expect("the translated item is visible in the chat menu");
         for pressed in [true, false] {
             frame(vec![
                 egui::Event::PointerMoved(position),
@@ -2565,6 +2582,17 @@ mod tests {
                 },
             ]);
         }
+    }
+
+    #[test]
+    fn export_chat_in_the_list_menu_opens_offline_for_the_clicked_chat() {
+        let directory = tempfile::tempdir().unwrap();
+        let (mut app, _) = App::headless(AppDirs::under(directory.path()), Settings::default());
+        let chat = Chat::new("export-fixture@g.us".into(), "Export fixture".into());
+        click_item_in_the_list_menu(&mut app, &chat, "Export chat");
+        assert!(app.actions.iter().any(|action| matches!(action,
+            Action::ShowDialog(Dialog::ExportChat { chat: id, include_media: false }) if id == &chat.id
+        )));
     }
 
     #[test]

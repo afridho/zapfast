@@ -371,7 +371,8 @@ you are done.
 
 ## Chat exports
 
-Choose **Export chat…** from a conversation's menu to save all of its locally
+Choose **Export chat** from a conversation's menu or the chat list's right-click
+menu to save all of its locally
 stored messages as a UTF-8 text file. **Include downloaded attachments (ZIP)**
 adds the existing files and `_chat.txt` to one ZIP. The text uses UTC timestamps
 and preserves multiline messages and captions. Missing attachments are listed as
@@ -380,4 +381,7 @@ unavailable; this never downloads files or requests older history from the phone
 Exports are unencrypted. Locked chats cannot be exported. Cancel stops the job;
 locking the app, clearing/deleting the chat or unlinking the account also cancels
 it. A cancelled or failed export removes its partial files and preserves an
-existing destination. Completed exports remain where you chose to save them.
+existing destination. Exports go directly to the download folder configured in
+Settings, otherwise the system Downloads folder, without a destination picker.
+Files are named after the chat and receive a numbered suffix if the name is
+already taken. A toast reports the saved file's path.

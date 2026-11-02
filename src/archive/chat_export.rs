@@ -216,7 +216,7 @@ fn one_line(text: &str) -> String {
 
 /// Builds a bounded filename component without separators, control characters or dot-only names.
 /// The caller adds a numeric prefix to keep ZIP entries unique.
-fn safe_name(name: &str) -> String {
+pub(crate) fn safe_name(name: &str) -> String {
     let name: String = name
         .chars()
         .take(100)

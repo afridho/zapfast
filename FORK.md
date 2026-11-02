@@ -80,6 +80,11 @@ actions and clipboard support now use upstream's implementation. Export uses the
 upstream destination picker instead of the fork's automatic Downloads destination.
 GIF pagination offers Load more and Retry; it is not automatic infinite scrolling.
 
+After integration, the fork's export flow was restored on request: **Export chat**
+is in both the conversation menu and chat-list context menu, with no ellipsis.
+The **Export** confirmation saves directly to the configured download folder or
+system Downloads, using numbered filenames rather than overwriting earlier files.
+
 The custom light/dark system palettes and their cached settings, blur controls,
 Linux traffic lights and rounded corners, custom application PNG, display name,
 emoji coverage filter and Linux scroll response remain local additions. No live

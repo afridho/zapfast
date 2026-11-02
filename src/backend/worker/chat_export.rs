@@ -88,6 +88,13 @@ impl Worker {
             });
             return;
         }
+        let title = self
+            .contact_name(&chat)
+            .or_else(|| self.archive.chat(&chat).ok().flatten().map(|c| c.name))
+            .unwrap_or_else(|| self.chat_name(&chat, None));
+        let folder = self.download_folder.clone().or_else(|| {
+            directories::UserDirs::new().and_then(|dirs| dirs.download_dir().map(Path::to_path_buf))
+        });
         let cancelled = Arc::new(AtomicBool::new(false));
         self.chat_export.job = Some(Job {
             request,
@@ -97,19 +104,7 @@ impl Worker {
         });
         let commands = self.commands.clone();
         tokio::task::spawn_blocking(move || {
-            let extension = if include_media { "zip" } else { "txt" };
-            let target = rfd::FileDialog::new()
-                .set_title("Export chat")
-                .set_file_name(format!("Chat export.{extension}"))
-                .add_filter(
-                    if include_media {
-                        "Chat with attachments"
-                    } else {
-                        "Text file"
-                    },
-                    &[extension],
-                )
-                .save_file();
+            let target = folder.and_then(|folder| export_target(&folder, &title, include_media));
             let _ = commands.send(Command::ChatExportTarget {
                 request,
                 include_media,
@@ -230,10 +225,45 @@ impl Worker {
     }
 }
 
+/// Names exports in Downloads without replacing an earlier export.
+fn export_target(folder: &Path, title: &str, include_media: bool) -> Option<PathBuf> {
+    std::fs::create_dir_all(folder).ok()?;
+    let extension = if include_media { "zip" } else { "txt" };
+    let stem = crate::archive::chat_export::safe_name(&format!("Chat export - {title}"));
+    for attempt in 0..1000 {
+        let name = if attempt == 0 {
+            format!("{stem}.{extension}")
+        } else {
+            format!("{stem} ({attempt}).{extension}")
+        };
+        let candidate = folder.join(name);
+        if !candidate.exists() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::receipt_tests;
     use super::*;
+
+    #[test]
+    fn the_default_export_target_avoids_overwriting() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = dir.path().join("Downloads");
+        let first = export_target(&folder, "Ada Lovelace", false).unwrap();
+        assert_eq!(first.file_name().unwrap(), "Chat export - Ada Lovelace.txt");
+        std::fs::write(&first, b"").unwrap();
+        let second = export_target(&folder, "Ada Lovelace", false).unwrap();
+        assert_eq!(
+            second.file_name().unwrap(),
+            "Chat export - Ada Lovelace (1).txt"
+        );
+        let zip = export_target(&folder, "a/b:c", true).unwrap();
+        assert_eq!(zip.file_name().unwrap(), "Chat export - a_b_c.zip");
+    }
 
     /// A cancelled picker result clears busy state without opening the archive or destination.
     #[test]

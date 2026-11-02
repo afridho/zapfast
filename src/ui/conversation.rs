@@ -679,7 +679,7 @@ fn header(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> Rect {
                     } else {
                         crate::i18n::gettext(app.locale, "Archive")
                     };
-                    let export_label = crate::i18n::gettext(app.locale, "Export chat…");
+                    let export_label = crate::i18n::gettext(app.locale, "Export chat");
                     let clear_label = crate::i18n::gettext(app.locale, "Clear chat");
                     let copy_number_label = crate::i18n::gettext(app.locale, "Copy number");
                     let close_label = crate::i18n::gettext(app.locale, "Close chat");
