@@ -4674,6 +4674,7 @@ fn reaction_affordance(
     let response = ui.interact(rect, bubble.id.with("react"), Sense::CLICK);
     // Reply sits one step further out, where the chat accepts messages.
     let can_reply = view.chat.can_send()
+        && !message.is_revoked()
         && !matches!(
             message.content,
             Content::Revoked | Content::PhoneOnly { .. }
@@ -5326,6 +5327,7 @@ fn call_menu(
 /// Starts a reply when the response was double-clicked, as the menu's "Reply".
 fn reply_on_double_click(response: &egui::Response, message: &Message, actions: &mut Vec<Action>) {
     if response.double_clicked()
+        && !message.is_revoked()
         && !matches!(message.content, Content::Revoked | Content::Call { .. })
     {
         actions.push(Action::Reply(message.id.clone()));
@@ -5687,6 +5689,11 @@ fn bubble_frame(
                     None => content(ui, view, message, cap, reserve, actions),
                 }
             };
+            if (message.revoked || album.is_some_and(|members| members.iter().any(|m| m.revoked)))
+                && !matches!(message.content, Content::Revoked)
+            {
+                deleted_message_label(ui, &palette, message.from_me, 12.0);
+            }
             if over_picture && let Some(picture) = slot {
                 footer_over_picture(ui, view, message, picture, starred, pinned, actions);
             } else {
@@ -6383,6 +6390,29 @@ fn mirrored_row(
     });
 }
 
+/// The deletion notice stays distinct from the retained message body.
+fn deleted_message_label(ui: &mut egui::Ui, palette: &Palette, own: bool, size: f32) {
+    mirrored_row(
+        ui,
+        own,
+        |ui| {
+            theme::icon(ui, Icon::Ban, size, palette.secondary);
+        },
+        |ui| {
+            ui.add(
+                egui::Label::new(
+                    egui::RichText::new("This message was deleted")
+                        .font(theme::regular(size))
+                        .color(palette.secondary)
+                        .italics(),
+                )
+                .truncate()
+                .selectable(false),
+            );
+        },
+    );
+}
+
 /// Size of the forwarded label's arrow.
 const FORWARDED_ICON: f32 = 14.0;
 /// Gap between the forwarded label's arrow and its word.
@@ -6538,6 +6568,7 @@ pub(super) fn display_delivery(
 /// itself. A quote or the forwarded label keeps the bubble around it.
 fn bare_picture(palette: &Palette, message: &Message) -> bool {
     palette.bubbles == theme::BubbleStyle::Messages
+        && !message.revoked
         && time_over_picture(message)
         && message.quoted.is_none()
         && !message.forwarded
@@ -6673,7 +6704,7 @@ pub fn footer_id(chat: &str, message: &str) -> egui::Id {
 /// Whether "Message info" has receipts to show: our own sent message.
 fn has_message_info(message: &Message) -> bool {
     message.from_me
-        && !matches!(message.content, Content::Revoked)
+        && !message.is_revoked()
         && !matches!(
             message.status,
             Delivery::None | Delivery::Pending | Delivery::Failed
@@ -7352,7 +7383,8 @@ fn context_menu(
         first.get_or_insert(response.id);
         response.clicked()
     };
-    if can_reply(&message.content)
+    if !message.is_revoked()
+        && can_reply(&message.content)
         && item(ui, Icon::Reply, &crate::i18n::gettext(view.locale, "Reply"))
     {
         if matches!(origin, MenuOrigin::List) {
@@ -7384,7 +7416,7 @@ fn context_menu(
     } else {
         crate::i18n::gettext(view.locale, "Star")
     };
-    if !matches!(message.content, Content::Revoked) && item(ui, Icon::Star, &star_label) {
+    if !message.is_revoked() && item(ui, Icon::Star, &star_label) {
         actions.push(Action::SetStar {
             chat: chat.clone(),
             message: message.id.clone(),
@@ -7398,7 +7430,7 @@ fn context_menu(
     } else {
         crate::i18n::gettext(view.locale, "Pin message")
     };
-    if !matches!(message.content, Content::Revoked) && item(ui, Icon::Pin, &pin_label) {
+    if !message.is_revoked() && item(ui, Icon::Pin, &pin_label) {
         actions.push(Action::SetMessagePinned {
             chat: chat.clone(),
             message: message.id.clone(),
@@ -7858,7 +7890,7 @@ impl RevokeBlocker {
 pub(crate) fn revoke_blocker(message: &Message, now: i64) -> Option<RevokeBlocker> {
     if !message.from_me {
         Some(RevokeBlocker::NotOurs)
-    } else if matches!(message.content, Content::Revoked) {
+    } else if message.is_revoked() {
         Some(RevokeBlocker::Deleted)
     } else if now - message.timestamp > crate::app::REVOKE_WINDOW.as_secs() as i64 {
         Some(RevokeBlocker::TooOld)
@@ -8530,7 +8562,7 @@ fn content(
                 view.locale,
                 message,
                 width,
-                view.connected,
+                view.connected && !message.is_revoked(),
                 view.poll_voting
                     .contains(&(message.chat.clone(), message.id.clone())),
                 actions,
@@ -8560,21 +8592,7 @@ fn content(
             call_entry(ui, &palette, &entry, view.locale, tint, width, reserve)
         }
         Content::Revoked => {
-            mirrored_row(
-                ui,
-                own,
-                |ui| {
-                    theme::icon(ui, Icon::Ban, 14.0, palette.dim);
-                },
-                |ui| {
-                    theme::text(
-                        ui,
-                        "This message was deleted",
-                        theme::regular(13.5),
-                        palette.secondary,
-                    );
-                },
-            );
+            deleted_message_label(ui, &palette, own, 13.5);
             None
         }
         Content::PhoneOnly {
@@ -8829,6 +8847,7 @@ fn carousel_row(message: &Message, index: usize, card: &crate::model::Interactiv
         from_me: message.from_me,
         timestamp: message.timestamp,
         history_order: message.history_order,
+        revoked: message.revoked,
         content: Content::Interactive {
             text: card.body.clone(),
             card: None,
@@ -9333,6 +9352,7 @@ fn interactive_enabled(
             InteractiveAction::Copy(_) => true,
             InteractiveAction::Reply | InteractiveAction::Select(_) => {
                 view.connected
+                    && !message.is_revoked()
                     && view.chat.can_send()
                     && !message.from_me
                     && !message.edited
@@ -11943,6 +11963,7 @@ mod tests {
             from_me: true,
             timestamp: now,
             history_order: None,
+            revoked: false,
             content: Content::text("Synthetic message"),
             status: Delivery::Sent,
             delivered_at: None,
@@ -12161,6 +12182,7 @@ mod tests {
             from_me: false,
             timestamp: 1,
             history_order: None,
+            revoked: false,
             content: Content::Image {
                 motion: None,
                 caption: None,
@@ -12262,6 +12284,7 @@ mod tests {
             forwarded: false,
             thumbnail: None,
             history_order: None,
+            revoked: false,
         }
     }
 
@@ -12947,6 +12970,7 @@ mod tests {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,
@@ -13138,6 +13162,7 @@ mod reaction_tests {
             quoted: None,
             reactions,
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,

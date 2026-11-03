@@ -143,7 +143,7 @@ impl Archive {
         }
         Ok(self
             .message(chat, id)?
-            .is_some_and(|message| matches!(message.content, crate::model::Content::Revoked)))
+            .is_some_and(|message| message.is_revoked()))
     }
 
     /// Active pins of one chat, newest first, at most three. A pin whose

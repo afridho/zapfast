@@ -1168,6 +1168,7 @@ mod idle_tests {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,
@@ -1227,6 +1228,7 @@ mod idle_tests {
                 quoted: None,
                 reactions: Vec::new(),
                 history_order: None,
+                revoked: false,
                 edited: false,
                 mentions: Vec::new(),
                 forwarded: false,
@@ -1662,6 +1664,7 @@ mod idle_tests {
                 forwarded: false,
                 thumbnail: None,
                 history_order: None,
+                revoked: false,
             });
         }
         conversation.complete = true;

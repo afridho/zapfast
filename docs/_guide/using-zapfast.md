@@ -118,6 +118,26 @@ private-reply recovery, including refusals arriving after deletion.
 Double-click beside a message, or on its edge, to reply to it. A double-click
 on its text still selects the word.
 
+Development builds retain previously received content locally when a message
+is deleted manually. **Settings > Development > Show deleted messages on timer
+messages** is off by default: messages carrying a disappearing-message timer
+are removed locally when that timer ends. Turn it on to retain expired content
+with the deletion label instead. Turning it off removes retained expired rows;
+turning it on cannot recover rows already removed. This never changes the
+phone's timer or sends a deletion request. Expiry uses each message's received
+timer metadata, not the chat's current timer, which may have changed since it
+was sent. Messages archived before this expiry support acquire their deadlines
+when their protocol metadata is replayed.
+
+Development builds retain previously received content locally when a message
+is deleted for everyone, with **This message was deleted** below it. This applies
+to all message types, including media already downloaded on this computer.
+Missing attachments are not downloaded again after deletion. Content already
+replaced by a deletion placeholder cannot be recovered by this change.
+This is local retention only, not a guarantee against account restrictions
+when using an unofficial client. **Delete for me**, clearing a chat, and deleting
+a chat still remove local copies normally.
+
 Deleting a message asks which copies to remove. **Delete for everyone**
 revokes it through WhatsApp. In **0.19.0**, **Delete for me** removes only this
 computer's copy, and individual deletions do not sync to or from your phone.

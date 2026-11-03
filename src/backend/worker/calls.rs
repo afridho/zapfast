@@ -1038,6 +1038,7 @@ impl Worker {
             from_me: entry.from_me,
             timestamp: entry.timestamp,
             history_order: None,
+            revoked: false,
             content: Content::Call {
                 video: entry.video,
                 status: entry.status,

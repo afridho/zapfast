@@ -47,6 +47,38 @@ pub(super) struct EarlyAck {
 }
 
 impl Worker {
+    /// Local expiry never sends a delete request or changes the phone's timer.
+    pub(super) fn expire_local_messages(&mut self) {
+        let keep = self
+            .archive
+            .meta("show_deleted_timer_messages")
+            .ok()
+            .flatten()
+            .as_deref()
+            == Some("1");
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        let Ok(expired) = self.archive.expired_messages(now, keep) else {
+            return;
+        };
+        for (chat, id) in expired {
+            if self.archive.expire_message(&chat, &id, keep).is_err() {
+                continue;
+            }
+            if keep {
+                self.emit_message(&chat, &id);
+            } else {
+                self.emit(Event::MessageDeleted {
+                    chat: chat.clone(),
+                    id,
+                });
+            }
+            self.emit_chat(&chat);
+        }
+    }
+
     /// Changes a chat's disappearing-message timer using the direct or group
     /// WhatsApp API. A direct change is written only once the server acks it;
     /// a group's is written from the server's group notification.
@@ -351,6 +383,7 @@ impl Worker {
             forwarded: false,
             thumbnail: None,
             history_order: None,
+            revoked: false,
         };
         if let Err(error) = self.archive.insert_message(&notice, None) {
             log::warn!("could not file a disappearing-messages notice: {error}");

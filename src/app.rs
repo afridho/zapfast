@@ -361,7 +361,7 @@ fn add_range(messages: &[Message], ids: &mut Vec<String>, anchor: &str, to: &str
     };
     let (from, to) = (from.min(to), from.max(to));
     for message in &messages[from..=to] {
-        if can_select(&message.content) && !ids.contains(&message.id) {
+        if !message.is_revoked() && can_select(&message.content) && !ids.contains(&message.id) {
             ids.push(message.id.clone());
         }
     }
@@ -1450,6 +1450,9 @@ impl App {
             .ok();
         let folder = app.settings.download_folder.clone();
         for account in &app.accounts {
+            account.backend.send(Command::SetShowDeletedTimerMessages(
+                app.settings.show_deleted_timer_messages,
+            ));
             account
                 .backend
                 .send(Command::SetDownloadFolder(folder.clone()));
@@ -2079,6 +2082,9 @@ impl App {
         };
         account.backend.send(Command::SetDownloadFolder(
             self.settings.download_folder.clone(),
+        ));
+        account.backend.send(Command::SetShowDeletedTimerMessages(
+            self.settings.show_deleted_timer_messages,
         ));
         account.backend.send(Command::SetKeepChatsArchived(
             self.settings.keep_chats_archived,
@@ -3547,7 +3553,7 @@ impl App {
     /// Whether an outgoing message can still be revoked for everyone.
     pub fn can_revoke(&self, message: &Message) -> bool {
         message.from_me
-            && !matches!(message.content, Content::Revoked)
+            && !message.is_revoked()
             && crate::util::now() - message.timestamp <= REVOKE_WINDOW.as_secs() as i64
     }
 
@@ -4149,7 +4155,7 @@ impl App {
                 let in_starred = self.starred.iter().any(|entry| {
                     entry.message.chat == message.chat && entry.message.id == message.id
                 });
-                if matches!(message.content, Content::Revoked) {
+                if message.is_revoked() {
                     // A revoke for everyone arrives as an update, not as a
                     // deletion. The star it still holds would keep the row
                     // in the open list with nothing left to unstar.
@@ -5001,7 +5007,7 @@ impl App {
         let selectable = |id: &str| {
             conversation
                 .and_then(|conversation| conversation.message(id))
-                .is_some_and(|message| can_select(&message.content))
+                .is_some_and(|message| !message.is_revoked() && can_select(&message.content))
         };
         let ids: Vec<String> = ids.into_iter().filter(|id| selectable(id)).collect();
         let anchor_gone = self
@@ -8280,7 +8286,9 @@ impl App {
                         .conversations
                         .get(&chat)
                         .and_then(|conversation| conversation.message(&id))
-                        .is_some_and(|message| can_select(&message.content))
+                        .is_some_and(|message| {
+                            !message.is_revoked() && can_select(&message.content)
+                        })
                 {
                     self.selection = Some((chat, vec![id.clone()]));
                     self.selection_anchor = Some(id);
@@ -8359,7 +8367,9 @@ impl App {
                         .conversations
                         .get(chat.as_str())
                         .and_then(|conversation| conversation.message(&id))
-                        .is_some_and(|message| can_select(&message.content));
+                        .is_some_and(|message| {
+                            !message.is_revoked() && can_select(&message.content)
+                        });
                     if !selectable {
                         return;
                     }
@@ -8434,7 +8444,7 @@ impl App {
                     .get_mut(&chat)
                     .and_then(|conversation| conversation.message_mut(&id))
                 {
-                    message.content = Content::Revoked;
+                    message.revoked = true;
                 }
                 self.prune_selection();
                 self.forget_star(&chat, &id);
@@ -9732,7 +9742,14 @@ impl App {
                 self.search_hits.clear();
                 self.mark_settings_dirty();
             }
-            Action::SettingsChanged => self.mark_settings_dirty(),
+            Action::SettingsChanged => {
+                for account in &self.accounts {
+                    account.backend.send(Command::SetShowDeletedTimerMessages(
+                        self.settings.show_deleted_timer_messages,
+                    ));
+                }
+                self.mark_settings_dirty();
+            }
             Action::SetAccountPrivacy { kind, choice } => {
                 // The value lives on the phone: nothing is written without a
                 // connection and a snapshot to write against.
@@ -15124,6 +15141,7 @@ mod tests {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,
@@ -20625,6 +20643,7 @@ mod tests {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,
@@ -23405,6 +23424,7 @@ mod tests {
             .into_iter()
             .map(|(id, order)| Message {
                 history_order: Some(order),
+                revoked: false,
                 content: Content::text(format!("updated {id}")),
                 edited: true,
                 ..message("c", id, 100)
@@ -26313,6 +26333,7 @@ mod name_tests {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: vec![MentionRef {
                 user: "15550001111".into(),
@@ -26632,6 +26653,7 @@ mod app_lock_tests {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,

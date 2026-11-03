@@ -15,6 +15,13 @@ impl Archive {
         target: &str,
     ) -> Result<()> {
         transaction.execute(
+            "INSERT INTO message_expirations (chat, id, expires_at)
+             SELECT ?2, e.id, e.expires_at FROM message_expirations e
+             JOIN messages m ON m.chat = ?2 AND m.id = e.id WHERE e.chat = ?1
+             ON CONFLICT(chat, id) DO UPDATE SET expires_at = MIN(expires_at, excluded.expires_at)",
+            params![source, target],
+        )?;
+        transaction.execute(
             "INSERT INTO stars (chat, id, starred, starred_at)
              SELECT ?2, s.id, s.starred, s.starred_at FROM stars s
              LEFT JOIN messages original ON original.chat = ?1 AND original.id = s.id
@@ -23,7 +30,8 @@ impl Archive {
                 (original.id IS NULL OR current.id IS NOT NULL)
                 AND NOT EXISTS (SELECT 1 FROM message_removals r WHERE r.chat = ?2 AND r.id = s.id
                     AND r.account = COALESCE((SELECT value FROM meta WHERE key = 'me_pn'), ''))
-                AND (current.id IS NULL OR json_extract(current.content, '$.kind') <> 'revoked')))
+                AND (current.id IS NULL OR (json_extract(current.content, '$.kind') <> 'revoked'
+                    AND COALESCE(json_extract(current.content, '$.locally_revoked'), 0) <> 1))))
              ON CONFLICT(chat, id) DO UPDATE SET
                 starred = excluded.starred, starred_at = excluded.starred_at
              WHERE excluded.starred_at > stars.starred_at",
@@ -38,7 +46,8 @@ impl Archive {
                 (original.id IS NULL OR current.id IS NOT NULL)
                 AND NOT EXISTS (SELECT 1 FROM message_removals r WHERE r.chat = ?2 AND r.id = p.id
                     AND r.account = COALESCE((SELECT value FROM meta WHERE key = 'me_pn'), ''))
-                AND (current.id IS NULL OR json_extract(current.content, '$.kind') <> 'revoked')))
+                AND (current.id IS NULL OR (json_extract(current.content, '$.kind') <> 'revoked'
+                    AND COALESCE(json_extract(current.content, '$.locally_revoked'), 0) <> 1))))
              ON CONFLICT(chat, id) DO UPDATE SET
                 pinned = excluded.pinned, pinned_at = excluded.pinned_at,
                 expires_at = excluded.expires_at, by_me = excluded.by_me, sender = excluded.sender

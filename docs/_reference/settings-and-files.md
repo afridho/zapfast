@@ -275,6 +275,14 @@ hints under the message box** in the Keyboard shortcuts dialog brings it back),
 playback speed, and the chat list and search pane widths.
 
 Development builds also remember the window's size, position, and maximized
+state. Under **Development**, **Show deleted messages on timer messages**
+(`show_deleted_timer_messages`, default `false`) retains expired disappearing
+messages locally with a deletion label when enabled. When disabled, timer
+messages are removed locally on expiry. This choice applies to every account
+and never changes WhatsApp's timer. The archive stores deadlines in
+`message_expirations`; no message content is sent anywhere for this feature.
+
+Development builds also remember the window's size, position, and maximized
 state in `settings.json`, including when reopening from the tray or a
 notification. The window opens at the same size whatever the interface's
 zoom. On Wayland the compositor controls placement, so ZapFast keeps the size

@@ -481,6 +481,8 @@ pub struct Settings {
     pub blur_chats: bool,
     /// Offer emoji requiring bundled artwork instead of the system emoji font.
     pub show_unsupported_emoji: bool,
+    /// Keep expired disappearing messages locally for development.
+    pub show_deleted_timer_messages: bool,
     /// Show the default doodle wallpaper behind conversations.
     pub show_wallpaper: bool,
     /// Colour selected in the wallpaper picker.
@@ -599,6 +601,7 @@ impl Default for Settings {
             auto_download: true,
             blur_chats: false,
             show_unsupported_emoji: false,
+            show_deleted_timer_messages: false,
             show_wallpaper: true,
             wallpaper_color: WallpaperColor::Theme,
             dark_wallpaper_color: WallpaperColor::Theme,

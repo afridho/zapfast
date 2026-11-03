@@ -105,6 +105,16 @@ CREATE TABLE IF NOT EXISTS messages (
     PRIMARY KEY (chat, id)
 );
 CREATE INDEX IF NOT EXISTS messages_by_time ON messages (chat, timestamp);
+CREATE TABLE IF NOT EXISTS message_expirations (
+    chat TEXT NOT NULL,
+    id TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    PRIMARY KEY (chat, id)
+);
+CREATE INDEX IF NOT EXISTS messages_by_expiration ON message_expirations (expires_at);
+CREATE TRIGGER IF NOT EXISTS delete_message_expiration AFTER DELETE ON messages BEGIN
+    DELETE FROM message_expirations WHERE chat = OLD.chat AND id = OLD.id;
+END;
 CREATE TABLE IF NOT EXISTS motion_clips (
     chat TEXT NOT NULL,
     parent TEXT NOT NULL,
@@ -381,6 +391,12 @@ fn search_pattern(needle: &str) -> Option<String> {
 }
 
 /// A message from a row of [`SEARCH_COLUMNS`].
+fn locally_revoked(content: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(content)
+        .ok()
+        .is_some_and(|value| value.get("locally_revoked").and_then(|v| v.as_bool()) == Some(true))
+}
+
 fn searched_message(row: &rusqlite::Row<'_>) -> rusqlite::Result<Message> {
     let content: String = row.get(6)?;
     let quoted: Option<String> = row.get(8)?;
@@ -402,6 +418,7 @@ fn searched_message(row: &rusqlite::Row<'_>) -> rusqlite::Result<Message> {
         quoted: quoted.and_then(|quoted| serde_json::from_str(&quoted).ok()),
         reactions: serde_json::from_str(&reactions).unwrap_or_default(),
         history_order: row.get(16)?,
+        revoked: locally_revoked(&content),
         edited: row.get(10)?,
         mentions: serde_json::from_str(&mentions).unwrap_or_default(),
         forwarded: row.get(13)?,
@@ -1447,6 +1464,10 @@ impl Archive {
         kept_edited: bool,
         copies: &[MessageCopy; 2],
     ) -> Result<()> {
+        if copies.iter().any(|copy| locally_revoked(&copy.json)) {
+            self.retain_revoked(chat, id)?;
+            return Ok(());
+        }
         if copies
             .iter()
             .any(|copy| matches!(copy.content, Some(Content::Revoked)))
@@ -1564,13 +1585,18 @@ impl Archive {
         if self.message_removed(&message.chat, &message.id)? {
             return Ok(());
         }
+        let mut content = serde_json::to_value(&message.content).unwrap_or_default();
+        if message.revoked {
+            content["locally_revoked"] = serde_json::Value::Bool(true);
+        }
         self.connection.execute(
             "INSERT INTO messages (chat, id, sender, sender_name, from_me, timestamp, content, status, quoted, reactions, edited, raw, thumbnail, mentions, forwarded, delivered_at, read_at, history_order)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?19)
              ON CONFLICT(chat, id) DO UPDATE SET
                 history_order = COALESCE(excluded.history_order, messages.history_order),
                 sender_name = COALESCE(excluded.sender_name, sender_name),
-                content = excluded.content,
+                content = CASE WHEN json_extract(messages.content, '$.locally_revoked') = 1
+                    THEN messages.content ELSE excluded.content END,
                 status = CASE
                     WHEN messages.status > excluded.status AND excluded.status <> ?18
                     THEN messages.status
@@ -1595,7 +1621,7 @@ impl Archive {
                 message.sender_name,
                 message.from_me,
                 message.timestamp,
-                serde_json::to_string(&message.content).unwrap_or_default(),
+                content.to_string(),
                 status_rank(message.status),
                 message
                     .quoted
@@ -1617,6 +1643,26 @@ impl Archive {
         if matches!(message.content, Content::Image { motion: None, .. }) {
             self.connection
                 .execute(MARK_MOTION, params![message.chat, message.id])?;
+        }
+        if let Some(raw) = raw {
+            use whatsapp_rust::{
+                prelude::{MessageExt, wa},
+                waproto::buffa::Message as _,
+            };
+            if let Ok(proto) = wa::Message::decode_from_slice(raw)
+                && let Some(seconds) = proto.get_base_message().get_ephemeral_expiration()
+                && seconds > 0
+            {
+                self.connection.execute(
+                    "INSERT INTO message_expirations (chat, id, expires_at) VALUES (?1, ?2, ?3)
+                     ON CONFLICT(chat, id) DO NOTHING",
+                    params![
+                        message.chat,
+                        message.id,
+                        message.timestamp.saturating_add(i64::from(seconds))
+                    ],
+                )?;
+            }
         }
         self.connection.execute(
             "UPDATE chats SET last_activity = MAX(last_activity, ?2) WHERE id = ?1",
@@ -1665,6 +1711,7 @@ impl Archive {
                     quoted: quoted.and_then(|quoted| serde_json::from_str(&quoted).ok()),
                     reactions: serde_json::from_str(&reactions).unwrap_or_default(),
                     history_order: row.get(15)?,
+                    revoked: locally_revoked(&content),
                     edited: row.get(9)?,
                     mentions: serde_json::from_str(&mentions).unwrap_or_default(),
                     forwarded: row.get(12)?,
@@ -1835,6 +1882,7 @@ impl Archive {
                     quoted: quoted.and_then(|quoted| serde_json::from_str(&quoted).ok()),
                     reactions: serde_json::from_str(&reactions).unwrap_or_default(),
                     history_order: row.get(15)?,
+                    revoked: locally_revoked(&content),
                     edited: row.get(9)?,
                     mentions: serde_json::from_str(&mentions).unwrap_or_default(),
                     forwarded: row.get(12)?,
@@ -2509,6 +2557,7 @@ impl Archive {
                     quoted: quoted.and_then(|quoted| serde_json::from_str(&quoted).ok()),
                     reactions: serde_json::from_str(&reactions).unwrap_or_default(),
                     history_order: row.get(14)?,
+                    revoked: locally_revoked(&content),
                     edited: row.get(8)?,
                     mentions: serde_json::from_str(&mentions).unwrap_or_default(),
                     forwarded: row.get(11)?,
@@ -2657,8 +2706,14 @@ impl Archive {
         content: &Content,
         edited: bool,
     ) -> Result<bool> {
+        if matches!(content, Content::Revoked) {
+            self.delete_pin(chat, id)?;
+        }
         let changed = self.connection.execute(
-            "UPDATE messages SET content = ?3, edited = ?4 WHERE chat = ?1 AND id = ?2",
+            "UPDATE messages SET content = CASE
+                WHEN json_extract(content, '$.locally_revoked') = 1
+                THEN json_set(?3, '$.locally_revoked', json('true')) ELSE ?3 END,
+                edited = ?4 WHERE chat = ?1 AND id = ?2",
             params![
                 chat,
                 id,
@@ -2666,11 +2721,42 @@ impl Archive {
                 edited
             ],
         )?;
-        if matches!(content, Content::Revoked) {
-            // Deleted for everyone: the message is gone, so its pin is too.
-            self.delete_pin(chat, id)?;
-        }
         Ok(changed > 0)
+    }
+
+    /// Marks a received message deleted for everyone, keeping its local content.
+    pub fn retain_revoked(&self, chat: &str, id: &str) -> Result<bool> {
+        let changed = self.connection.execute(
+            "UPDATE messages SET content = json_set(content, '$.locally_revoked', json('true'))
+             WHERE chat = ?1 AND id = ?2 AND json_valid(content)",
+            params![chat, id],
+        )?;
+        self.delete_pin(chat, id)?;
+        Ok(changed > 0)
+    }
+
+    pub fn expired_messages(&self, now: i64, keep: bool) -> Result<Vec<(String, String)>> {
+        let mut statement = self.connection.prepare(
+            "SELECT e.chat, e.id FROM message_expirations e JOIN messages m
+             ON m.chat = e.chat AND m.id = e.id WHERE e.expires_at <= ?1
+             AND (?2 = 0 OR COALESCE(json_extract(m.content, '$.locally_expired'), 0) <> 1) LIMIT 256",
+        )?;
+        statement
+            .query_map(params![now, keep], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect()
+    }
+
+    pub fn expire_message(&self, chat: &str, id: &str, keep: bool) -> Result<()> {
+        if keep {
+            self.retain_revoked(chat, id)?;
+            self.connection.execute(
+                "UPDATE messages SET content = json_set(content, '$.locally_expired', json('true')) WHERE chat = ?1 AND id = ?2",
+                params![chat, id],
+            )?;
+        } else {
+            self.delete_message(chat, id)?;
+        }
+        Ok(())
     }
 
     /// Replaces an edited body and its mention metadata in one write.
@@ -2682,7 +2768,9 @@ impl Archive {
         mentions: &[crate::model::MentionRef],
     ) -> Result<bool> {
         let changed = self.connection.execute(
-            "UPDATE messages SET content = ?3, mentions = ?4, edited = 1 WHERE chat = ?1 AND id = ?2",
+            "UPDATE messages SET content = ?3, mentions = ?4, edited = 1
+             WHERE chat = ?1 AND id = ?2
+             AND COALESCE(json_extract(content, '$.locally_revoked'), 0) <> 1",
             params![
                 chat,
                 id,
@@ -3183,6 +3271,7 @@ pub(crate) mod tests {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,
@@ -3201,6 +3290,187 @@ pub(crate) mod tests {
         );
         notice.content = Content::DisappearingTimer { seconds: 86_400 };
         notice
+    }
+
+    #[test]
+    fn timer_deadline_comes_from_each_messages_protocol_metadata() {
+        use whatsapp_rust::{
+            prelude::{MessageField, wa},
+            waproto::buffa::Message as _,
+        };
+        let archive = Archive::in_memory().unwrap();
+        let original = message("fixture@s.whatsapp.net", "timer", 100, false);
+        let mut context = wa::ContextInfo::default();
+        context.expiration = Some(10);
+        let mut text = wa::message::ExtendedTextMessage::default();
+        text.text = Some("fixture".into());
+        text.context_info = MessageField::some(context);
+        let mut proto = wa::Message::default();
+        proto.extended_text_message = MessageField::some(text);
+        archive
+            .insert_message(&original, Some(&proto.encode_to_vec()))
+            .unwrap();
+        assert!(archive.expired_messages(109, false).unwrap().is_empty());
+        assert_eq!(archive.expired_messages(110, false).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn timer_expiry_defaults_to_removal_and_can_retain_locally() {
+        let archive = Archive::in_memory().unwrap();
+        for (id, keep) in [("remove", false), ("retain", true)] {
+            let original = message("fixture@s.whatsapp.net", id, 100, false);
+            archive.insert_message(&original, None).unwrap();
+            archive
+                .connection
+                .execute(
+                    "INSERT INTO message_expirations VALUES (?1, ?2, 110)",
+                    params![original.chat, original.id],
+                )
+                .unwrap();
+            assert!(archive.expired_messages(109, keep).unwrap().is_empty());
+            assert_eq!(archive.expired_messages(110, keep).unwrap().len(), 1);
+            archive.expire_message(&original.chat, id, keep).unwrap();
+            let stored = archive.message(&original.chat, id).unwrap();
+            if keep {
+                let stored = stored.unwrap();
+                assert!(stored.revoked);
+                assert_eq!(stored.content, original.content);
+                assert!(archive.expired_messages(111, true).unwrap().is_empty());
+                assert_eq!(archive.expired_messages(111, false).unwrap().len(), 1);
+                archive.expire_message(&original.chat, id, false).unwrap();
+            } else {
+                assert!(stored.is_none());
+                archive.insert_message(&original, None).unwrap();
+                assert!(archive.message(&original.chat, id).unwrap().is_none());
+            }
+        }
+        assert!(!crate::settings::Settings::default().show_deleted_timer_messages);
+    }
+
+    #[test]
+    fn retained_revocation_survives_reopening_the_archive() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("fixture.db");
+        let key = [7; 32];
+        let original = message("fixture@s.whatsapp.net", "retained", 123, false);
+        {
+            let archive = Archive::open_with_key(&path, &key).unwrap();
+            archive.insert_message(&original, None).unwrap();
+            archive
+                .retain_revoked(&original.chat, &original.id)
+                .unwrap();
+        }
+        let archive = Archive::open_with_key(&path, &key).unwrap();
+        let kept = archive
+            .message(&original.chat, &original.id)
+            .unwrap()
+            .unwrap();
+        assert!(kept.revoked);
+        assert_eq!(kept.content, original.content);
+    }
+
+    #[test]
+    fn revocation_retains_every_downloaded_media_kind() {
+        let archive = Archive::in_memory().unwrap();
+        let media = crate::model::Media {
+            mime: "application/octet-stream".into(),
+            size: 100,
+            width: Some(32),
+            height: Some(32),
+            album: None,
+            path: Some("fixture/local-media".into()),
+            state: Default::default(),
+        };
+        let contents = [
+            Content::Image {
+                caption: Some("fixture".into()),
+                media: media.clone(),
+                motion: None,
+            },
+            Content::Video {
+                caption: None,
+                media: media.clone(),
+                seconds: Some(2),
+                gif: false,
+                note: false,
+            },
+            Content::Audio {
+                media: media.clone(),
+                seconds: Some(2),
+                voice_note: true,
+                waveform: vec![],
+            },
+            Content::Document {
+                media: media.clone(),
+                file_name: "fixture.pdf".into(),
+                caption: None,
+                pages: Some(1),
+            },
+            Content::Sticker {
+                media,
+                animated: false,
+            },
+        ];
+        for (index, content) in contents.into_iter().enumerate() {
+            let mut original = message("fixture@s.whatsapp.net", &index.to_string(), 123, false);
+            original.content = content;
+            archive.insert_message(&original, None).unwrap();
+            archive
+                .retain_revoked(&original.chat, &original.id)
+                .unwrap();
+            let kept = archive
+                .message(&original.chat, &original.id)
+                .unwrap()
+                .unwrap();
+            assert!(kept.revoked);
+            assert_eq!(kept.content, original.content);
+        }
+    }
+
+    #[test]
+    fn revocation_retains_local_content_and_survives_history_replay() {
+        let archive = Archive::in_memory().unwrap();
+        let original = message("fixture@s.whatsapp.net", "retained", 123, false);
+        archive
+            .insert_message(&original, Some(b"fixture raw"))
+            .unwrap();
+        archive
+            .retain_revoked(&original.chat, &original.id)
+            .unwrap();
+        let kept = archive
+            .message(&original.chat, &original.id)
+            .unwrap()
+            .unwrap();
+        assert!(kept.revoked);
+        assert_eq!(kept.content, original.content);
+        assert_eq!(
+            archive.raw(&original.chat, &original.id).unwrap(),
+            Some(b"fixture raw".to_vec())
+        );
+        archive.insert_message(&original, None).unwrap();
+        let kept = archive
+            .message(&original.chat, &original.id)
+            .unwrap()
+            .unwrap();
+        assert!(kept.revoked);
+        assert_eq!(kept.content, original.content);
+        assert!(archive.messages(&original.chat, None, 10).unwrap()[0].revoked);
+        archive
+            .set_edited_content(
+                &original.chat,
+                &original.id,
+                &Content::text("late edit"),
+                &[],
+            )
+            .unwrap();
+        assert_eq!(
+            archive
+                .message(&original.chat, &original.id)
+                .unwrap()
+                .unwrap()
+                .content,
+            original.content
+        );
     }
 
     #[test]
@@ -6052,6 +6322,7 @@ mod sticker_tests {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,
@@ -6232,6 +6503,7 @@ mod media_path_tests {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,

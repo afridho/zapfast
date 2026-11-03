@@ -110,7 +110,7 @@ impl Worker {
         let prepared = (|| {
             let jid = Self::jid_of(&chat)?;
             let row = self.archive.message(&chat, &id).ok()??;
-            if !matches!(row.content, Content::Poll { .. }) {
+            if row.is_revoked() || !matches!(row.content, Content::Poll { .. }) {
                 return None;
             }
             let anchor = self.archive.poll_history_anchor(&row).ok()?;
@@ -458,6 +458,7 @@ impl Worker {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,
@@ -497,6 +498,9 @@ impl Worker {
             let client = self.client.clone()?;
             let jid = Self::jid_of(&chat)?;
             let mut row = self.archive.message(&chat, &id).ok()??;
+            if row.is_revoked() {
+                return None;
+            }
             self.polish_poll(&mut row);
             let Content::Poll { options, state, .. } = row.content else {
                 return None;

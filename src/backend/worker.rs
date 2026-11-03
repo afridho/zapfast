@@ -1226,6 +1226,7 @@ pub async fn run(
                 worker.pump_poll_history();
                 worker.pump_prefetch();
                 worker.expire_timer_acks();
+                worker.expire_local_messages();
                 worker.prune_waiting_receipts();
                 worker.reconcile_call().await;
             }
@@ -2690,7 +2691,7 @@ impl Worker {
             let Some(old) = self.archive.message(&chat, &id).ok().flatten() else {
                 continue;
             };
-            if old.edited {
+            if old.edited || old.is_revoked() {
                 continue;
             }
             match self.archive.set_content(&chat, &id, &content, false) {
@@ -2736,7 +2737,7 @@ impl Worker {
             let Ok(Some(existing)) = self.archive.message(&chat, &id) else {
                 continue;
             };
-            if matches!(existing.content, Content::Revoked) {
+            if existing.is_revoked() {
                 continue;
             }
             // Live edits do not replace the original raw protobuf. Its body and
@@ -5189,17 +5190,12 @@ impl Worker {
             };
             match protocol.r#type {
                 Some(Type::REVOKE) => {
-                    let old = self.archive.message(&chat, &target).ok().flatten();
                     // A late answer to an edit sent from here must not
                     // replace what the phone did since.
                     self.edits.remove(&(chat.clone(), target.clone()));
-                    if let Ok(true) =
-                        self.archive
-                            .set_content(&chat, &target, &Content::Revoked, false)
-                    {
+                    if let Ok(true) = self.archive.retain_revoked(&chat, &target) {
                         self.emit_message(&chat, &target);
                         self.emit_chat(&chat);
-                        self.media_changed(&chat, old.as_ref().map(|old| &old.content), None);
                     }
                 }
                 Some(Type::MESSAGE_EDIT) => {
@@ -5316,6 +5312,7 @@ impl Worker {
             quoted,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions,
             forwarded: forwarded_of(base),
@@ -5904,6 +5901,7 @@ impl Worker {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,
@@ -5972,6 +5970,9 @@ impl Worker {
         if let Some(existing) = &existing {
             message.content.keep_local_paths(&existing.content);
             keep_live_location_notice(&mut message.content, existing);
+            if existing.revoked {
+                message = existing.clone();
+            }
         }
         if let Err(error) = self.archive.insert_message(&message, raw.as_deref()) {
             log::warn!("could not store a message: {error}");
@@ -6510,6 +6511,7 @@ impl Worker {
                     quoted,
                     reactions,
                     history_order: message.history_order,
+                    revoked: false,
                     edited: message.edited,
                     mentions,
                     forwarded: message.forwarded,
@@ -6549,9 +6551,8 @@ impl Worker {
                     row.content.keep_local_paths(&existing.content);
                     keep_live_location_notice(&mut row.content, &existing);
                     // A repeated original must not undo a later edit or revoke.
-                    if (existing.edited && !row.edited)
-                        || matches!(existing.content, Content::Revoked)
-                    {
+                    if (existing.edited && !row.edited) || existing.is_revoked() {
+                        row.revoked = existing.revoked;
                         row.content = existing.content.clone();
                         row.edited = existing.edited;
                         row.quoted = existing.quoted;
@@ -6661,9 +6662,8 @@ impl Worker {
                 {
                     media_changed_in.insert(id.clone());
                 }
-                let _ = self
-                    .archive
-                    .set_content(&id, &revoked, &Content::Revoked, false);
+                let _ = self.archive.retain_revoked(&id, &revoked);
+                self.emit_message(&id, &revoked);
             }
             for clip in chat.clips {
                 let sender = if clip.from_me {
@@ -7640,6 +7640,12 @@ impl Worker {
                     download_folders::discard_staging(folder, &self.dirs.id, self.me_pn.as_deref());
                 }
                 self.download_folder = folder;
+            }
+            Command::SetShowDeletedTimerMessages(keep) => {
+                let _ = self
+                    .archive
+                    .set_meta("show_deleted_timer_messages", if keep { "1" } else { "0" });
+                self.expire_local_messages();
             }
             Command::SetKeepChatsArchived(keep) => self.keep_chats_archived = keep,
             Command::Resumed => self.resumed(),
@@ -9409,7 +9415,7 @@ impl Worker {
             .message(source, id)
             .map_err(|_| unavailable)?
             .ok_or(unavailable)?;
-        if matches!(row.content, Content::Revoked) {
+        if row.is_revoked() {
             return Err(unavailable);
         }
         let raw = self.archive.raw(source, id).map_err(|_| unavailable)?;
@@ -9543,6 +9549,7 @@ impl Worker {
             quoted: shown,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions,
             forwarded: false,
@@ -9661,6 +9668,7 @@ impl Worker {
             quoted: shown,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,
@@ -10142,6 +10150,15 @@ impl Worker {
     /// Downloads an attachment. A `manual` one, asked for by the reader, has
     /// no size limit; every download's deadline grows with its size.
     fn download_media(&mut self, chat: ChatId, id: String, card: Option<usize>, manual: bool) {
+        if self
+            .archive
+            .message(&chat, &id)
+            .ok()
+            .flatten()
+            .is_some_and(|row| row.revoked)
+        {
+            return;
+        }
         if !self.downloads.insert((chat.clone(), id.clone(), card)) {
             // A click while only the picker is fetching it: the picker's
             // download skips the re-upload, so remember to ask if it fails.
@@ -10436,6 +10453,15 @@ impl Worker {
     /// Downloads a motion photo's clip into the cache. It is fetched like any
     /// attachment: verified, under the size limit, and within the deadline.
     fn download_motion(&mut self, chat: ChatId, id: String) {
+        if self
+            .archive
+            .message(&chat, &id)
+            .ok()
+            .flatten()
+            .is_some_and(|row| row.revoked)
+        {
+            return;
+        }
         let clip = self.archive.motion_clip(&chat, &id).ok().flatten();
         let video = clip
             .and_then(|raw| wa::Message::decode_from_slice(&raw).ok())
@@ -11292,7 +11318,7 @@ impl Worker {
         for alias in &aliases {
             if let Ok(Some(old)) = self.archive.message(alias, id) {
                 listed |= old.content.listable();
-                revoked |= matches!(old.content, Content::Revoked);
+                revoked |= old.is_revoked();
             }
         }
         match self.archive.delete_message_aliases(&aliases, id) {
@@ -11327,14 +11353,9 @@ impl Worker {
             self.emit(Event::Error("Not connected to WhatsApp".to_owned()));
             return;
         };
-        let old = self.archive.message(&chat, &id).ok().flatten();
-        if let Ok(true) = self
-            .archive
-            .set_content(&chat, &id, &Content::Revoked, false)
-        {
+        if let Ok(true) = self.archive.retain_revoked(&chat, &id) {
             self.emit_message(&chat, &id);
             self.emit_chat(&chat);
-            self.media_changed(&chat, old.as_ref().map(|old| &old.content), None);
         }
         let commands = self.commands.clone();
         tokio::spawn(async move {
@@ -14072,6 +14093,7 @@ pub(super) async fn file_outbound(
         quoted: None,
         reactions: Vec::new(),
         history_order: None,
+        revoked: false,
         edited: false,
         mentions: mentions
             .into_iter()
@@ -15181,6 +15203,7 @@ mod tests {
             }),
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,
@@ -18610,6 +18633,7 @@ mod tests {
                 emoji: "👍".into(),
             }],
             history_order: None,
+            revoked: false,
             edited: true,
             mentions: Vec::new(),
             forwarded: false,
@@ -20279,6 +20303,7 @@ mod receipt_tests {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,
@@ -24829,7 +24854,8 @@ mod receipt_tests {
             &list_info("revoke", 120),
         );
         let row = worker.archive.message(PEER, "m").unwrap().unwrap();
-        assert_eq!(row.content, Content::Revoked);
+        assert!(row.revoked);
+        assert_eq!(row.content, Content::text("Edited fixture"));
         assert!(broadcast_chats(&worker).is_empty());
     }
 
@@ -25432,14 +25458,13 @@ mod receipt_tests {
             )),
             &list_info("revoke", 200),
         );
-        assert_eq!(
+        assert!(
             worker
                 .archive
                 .message(LIST, "old")
                 .unwrap()
                 .unwrap()
-                .content,
-            Content::Revoked
+                .revoked
         );
         assert!(worker.archive.message(PEER, "old").unwrap().is_none());
     }

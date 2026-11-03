@@ -909,6 +909,11 @@ fn sections(app: &App) -> Vec<Section> {
 
     let mut development = Section::new(translated(locale, "Development"));
     development.toggle(
+        translated(locale, "Show deleted messages on timer messages"),
+        translated(locale, "Keep expired timer messages locally with a deleted-message label. Off by default; otherwise they disappear when their timer ends."),
+        |settings| &mut settings.show_deleted_timer_messages,
+    );
+    development.toggle(
         translated(locale, "Show emoji unsupported by system font"),
         translated(locale, "Use bundled emoji artwork when the system font cannot draw an emoji. Its style may differ."),
         |settings| &mut settings.show_unsupported_emoji,

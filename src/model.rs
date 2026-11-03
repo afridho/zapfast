@@ -587,6 +587,9 @@ pub struct Message {
     /// ties. Live messages and older archives may not have one.
     #[serde(default)]
     pub history_order: Option<i64>,
+    /// Deleted for everyone, with the previously received local content retained.
+    #[serde(default)]
+    pub revoked: bool,
     pub content: Content,
     pub status: Delivery,
     /// First delivered-receipt Unix timestamp for outgoing messages.
@@ -632,6 +635,10 @@ pub struct ComposedPreview {
 }
 
 impl Message {
+    pub fn is_revoked(&self) -> bool {
+        self.revoked || matches!(self.content, Content::Revoked)
+    }
+
     /// Whether WhatsApp also holds this row under an id it can be named by. A
     /// send still pending or failed here may never have reached it, and a
     /// disappearing-timer notice is filed under an id it never issued. Neither
@@ -645,7 +652,7 @@ impl Message {
     pub fn private_reply_recipient(&self) -> Option<&str> {
         (!self.from_me
             && ChatKind::from_id(&self.chat) == ChatKind::Group
-            && !matches!(self.content, Content::Revoked)
+            && !self.is_revoked()
             && self.sender.split_once('@').is_some_and(|(user, server)| {
                 !user.is_empty() && matches!(server, "s.whatsapp.net" | "lid")
             }))
@@ -4348,6 +4355,7 @@ mod tests {
             quoted: None,
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,

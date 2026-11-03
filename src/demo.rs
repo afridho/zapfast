@@ -287,6 +287,7 @@ fn message(chat: &str, id: &str, from_me: bool, timestamp: i64, content: Content
         quoted: None,
         reactions: Vec::new(),
         history_order: None,
+        revoked: false,
         edited: false,
         mentions: Vec::new(),
         forwarded: false,
@@ -820,6 +821,17 @@ pub fn populate(app: &mut App) {
             },
         ),
         message(ada, "ada-deleted", false, older + 60 * 25, Content::Revoked),
+        {
+            let mut retained = message(
+                ada,
+                "ada-retained-deleted",
+                false,
+                older + 60 * 26,
+                Content::text("The earlier meeting time was 10:00."),
+            );
+            retained.revoked = true;
+            retained
+        },
     ];
     let conversation = app.conversations.get_mut(ada).expect("sample chat");
     conversation.messages.splice(0..0, extra);
@@ -16507,7 +16519,7 @@ mod tests {
                     app.conversations[&chat]
                         .messages
                         .iter()
-                        .all(|message| matches!(message.content, Content::Revoked))
+                        .all(|message| message.is_revoked())
                 );
             } else {
                 assert_eq!(
@@ -18214,11 +18226,8 @@ mod tests {
                 .find_map(|conversation| conversation.message(message));
             if expected_everyone {
                 assert!(
-                    matches!(
-                        row.map(|message| &message.content),
-                        Some(crate::model::Content::Revoked)
-                    ),
-                    "{page}: a revoked message stays as a tombstone"
+                    row.is_some_and(|message| message.revoked),
+                    "{page}: a revoked message retains its local row"
                 );
             } else {
                 assert!(
@@ -18284,10 +18293,7 @@ mod tests {
             let row = app.conversations[own_chat].message(message);
             if everyone {
                 assert!(
-                    matches!(
-                        row.map(|message| &message.content),
-                        Some(crate::model::Content::Revoked)
-                    ),
+                    row.is_some_and(|message| message.revoked),
                     "{page}: the message is revoked in its own chat"
                 );
             } else {

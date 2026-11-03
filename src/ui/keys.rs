@@ -1176,6 +1176,7 @@ mod tests {
                 from_me: false,
                 timestamp: 1 + index as i64,
                 history_order: None,
+                revoked: false,
                 content,
                 status: crate::model::Delivery::None,
                 delivered_at: None,

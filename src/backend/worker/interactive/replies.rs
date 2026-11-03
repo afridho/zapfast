@@ -243,6 +243,9 @@ impl Worker {
         };
         let prepared = (|| {
             let row = self.archive.message(&chat, &source_id).ok().flatten()?;
+            if row.is_revoked() {
+                return None;
+            }
             let raw = self.archive.raw(&chat, &source_id).ok().flatten()?;
             let original = wa::Message::decode_from_slice(&raw).ok()?;
             let reply = prepare(&row, &original, &jid, button, choice)?;
@@ -277,6 +280,7 @@ impl Worker {
             }),
             reactions: Vec::new(),
             history_order: None,
+            revoked: false,
             edited: false,
             mentions: Vec::new(),
             forwarded: false,

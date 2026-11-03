@@ -725,6 +725,8 @@ pub enum Command {
     },
     /// Where new downloads go; `None` is the cache.
     SetDownloadFolder(Option<std::path::PathBuf>),
+    /// Local retention only, never changes the WhatsApp timer.
+    SetShowDeletedTimerMessages(bool),
     /// Whether archived chats stay archived when a new message arrives or is
     /// sent; when not, a new message unarchives the chat here.
     SetKeepChatsArchived(bool),

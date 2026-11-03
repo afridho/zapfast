@@ -19,7 +19,6 @@ use std::collections::HashSet;
 use rusqlite::params;
 
 use super::{Archive, Result};
-use crate::model::Content;
 
 pub const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS stars (
@@ -120,7 +119,7 @@ impl Archive {
                 // A message revoked for everyone keeps its row, with the
                 // revoked content in it. It has no words and no Unstar left, so
                 // it is not a row the list can offer.
-                if matches!(message.content, Content::Revoked) {
+                if message.is_revoked() {
                     continue;
                 }
                 list.push(Starred {

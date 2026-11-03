@@ -92,6 +92,7 @@ mod tests {
             from_me,
             timestamp,
             history_order: None,
+            revoked: false,
             content: Content::Call {
                 video: false,
                 status: CallStatus::Missed,
