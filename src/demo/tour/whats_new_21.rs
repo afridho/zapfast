@@ -232,7 +232,7 @@ pub(super) fn script() -> Vec<Cue> {
     // Export the chat: the dialog, with attachments, then Cancel.
     add(40.2, Move(Button("More")));
     add(40.6, Click(left));
-    add(41.2, Move(Label("Export chat…")));
+    add(41.2, Move(Label("Export chat")));
     add(41.6, Click(left));
     add(42.4, Move(Label("Include downloaded attachments (ZIP)")));
     add(42.8, Click(left));

@@ -182,6 +182,15 @@ Own Linux enhancements:
 
 Upstream pull requests pulled in early (squashed, author credited):
 
+- **Status updates** (PR #1020, rafagouveia), imported from
+  `be201bb231e385184a3833de518f8059fd252c76`: view, reply to and publish
+  WhatsApp Status, with audience selection and per-account encrypted storage.
+  Only the feature commit is imported, not the branch's older base or version
+  metadata. Runtime events use the current archive batching path. Status received
+  live or in pairing history persists for 24 hours; updates posted while the app
+  is closed cannot yet be fetched on reconnect. The application version stays
+  0.21.3. This upstream PR is still a draft.
+
 - **Export chats** (`0f473c4`, PR #664, eternalwaitt): "Export chat" in the
   conversation and chat-list menus, no ellipsis and no OS save picker. Exports
   go to `settings.download_folder` else the system Downloads folder, named

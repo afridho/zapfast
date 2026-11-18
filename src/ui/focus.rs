@@ -37,6 +37,7 @@ pub enum Stop {
     /// list is hidden, and keeps Hide the chat list's place in the order.
     Chats,
     Calls,
+    Status,
     /// A toggle in the bottom group, above Starred: Blur chats for privacy.
     BlurChats,
     Starred,
