@@ -242,6 +242,9 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, hidden: bool) {
                 // of leaving the bottom buttons beyond the window.
                 ui.set_height(height);
                 for destination in [Destination::Chats, Destination::Calls, Destination::Status] {
+                    if destination == Destination::Status && !app.settings.show_status {
+                        continue;
+                    }
                     destination_button(app, ui, &palette, destination, CELL);
                 }
                 if hidden {
@@ -477,7 +480,10 @@ fn destination_button(
             1.0
         };
         theme::paint_icon(ui, icon, plate, ICON * scale, tint);
-        if destination == Destination::Status && unseen_status(app) {
+        if destination == Destination::Status
+            && app.settings.show_status_badge
+            && unseen_status(app)
+        {
             ui.painter()
                 .circle_filled(badge_anchor(plate), 4.0, palette.accent);
         }

@@ -922,6 +922,19 @@ fn sections(app: &App) -> Vec<Section> {
 
     let mut development = Section::new(translated(locale, "Development"));
     development.toggle(
+        translated(locale, "Show Status"),
+        translated(locale, "Show the Status tab in the navigation sidebar."),
+        |settings| &mut settings.show_status,
+    );
+    development.toggle(
+        translated(locale, "Show Status badge"),
+        translated(
+            locale,
+            "Show a badge on the Status tab when there are unseen updates.",
+        ),
+        |settings| &mut settings.show_status_badge,
+    );
+    development.toggle(
         translated(locale, "Show deleted messages on timer messages"),
         translated(locale, "Keep expired timer messages locally with a deleted-message label. Off by default; otherwise they disappear when their timer ends."),
         |settings| &mut settings.show_deleted_timer_messages,

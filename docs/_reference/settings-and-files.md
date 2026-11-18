@@ -279,6 +279,11 @@ hints under the message box** in the Keyboard shortcuts dialog brings it back),
 **Also save to your phone's contacts** in the new-contact dialog, voice
 playback speed, and the chat list and search pane widths.
 
+Under **Development**, **Show Status** (`show_status`, default `true`) shows or
+hides the Status tab in the navigation sidebar without deleting saved updates.
+**Show Status badge** (`show_status_badge`, default `true`) controls the unseen
+update badge independently. These options do not change WhatsApp privacy settings.
+
 Development builds also remember the window's size, position, and maximized
 state. Under **Development**, **Show deleted messages on timer messages**
 (`show_deleted_timer_messages`, default `false`) retains expired disappearing

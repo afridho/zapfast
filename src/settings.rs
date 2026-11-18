@@ -481,6 +481,8 @@ pub struct Settings {
     pub blur_chats: bool,
     /// Offer emoji requiring bundled artwork instead of the system emoji font.
     pub show_unsupported_emoji: bool,
+    pub show_status: bool,
+    pub show_status_badge: bool,
     /// Keep expired disappearing messages locally for development.
     pub show_deleted_timer_messages: bool,
     /// Show the default doodle wallpaper behind conversations.
@@ -603,6 +605,8 @@ impl Default for Settings {
             auto_download: true,
             blur_chats: false,
             show_unsupported_emoji: false,
+            show_status: true,
+            show_status_badge: true,
             show_deleted_timer_messages: false,
             show_wallpaper: true,
             wallpaper_color: WallpaperColor::Theme,
@@ -1026,6 +1030,23 @@ impl AccountRoster {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn status_visibility_and_badge_default_on_and_round_trip() {
+        let defaults: super::Settings = serde_json::from_str("{}").unwrap();
+        assert!(defaults.show_status);
+        assert!(defaults.show_status_badge);
+        for (visible, badge) in [(false, true), (true, false), (false, false)] {
+            let settings = super::Settings {
+                show_status: visible,
+                show_status_badge: badge,
+                ..Default::default()
+            };
+            let saved = serde_json::to_string(&settings).unwrap();
+            let restored: super::Settings = serde_json::from_str(&saved).unwrap();
+            assert_eq!(restored.show_status, visible);
+            assert_eq!(restored.show_status_badge, badge);
+        }
+    }
     use super::*;
 
     #[test]
