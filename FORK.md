@@ -8,6 +8,11 @@ what this fork adds on top.
 
 ## Working rules for this fork
 
+- Updates always integrate upstream into this fork, never replace the installed
+  app with upstream binaries. Preserve all fork features when syncing, including
+  retained deleted messages, timer retention (off by default), and the italic
+  deletion notice with its blocked icon.
+
 - Keep the fork syncable with upstream `crmne/zapfast`. Do not touch
   `assets/i18n/` or the `fastframe` crates, and do not edit the upstream
   `AGENTS.md`. Fork-specific guidance goes here.
@@ -99,6 +104,21 @@ For PR #726, formatting and default-feature Clippy passed; the user deferred
 the remaining checks (all-feature Clippy, both test configurations, rustdoc).
 
 ## What this fork adds (oldest to newest)
+
+### Upstream 0.21.3 integration
+
+The fork integrates upstream tag `v0.21.3`
+(`a6f0f624a4a82dbdc5b0b08e721794fbe943348a`) as a linear squash update.
+This includes shared groups in contact details, word-prefix chat search,
+Dutch translation, archive write batching, Wayland clipboard lifetime fixes,
+album auto-downloads, and the upstream protocol and security updates.
+Dependency revisions follow this upstream release, without modifying dependency
+sources. Upstream translation changes are imported as-is, not regenerated here.
+
+Fork export destinations and labels, Linux appearance/scrolling, system emoji
+coverage filtering, and retained deletion content with its timer option and
+italic blocked-icon notice remain local additions. The archive's local retention
+continues alongside upstream's nested write batches.
 
 ### Upstream 0.21.0 integration
 

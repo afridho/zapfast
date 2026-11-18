@@ -430,7 +430,7 @@ fn glass(palette: &Palette, rect: Rect, radius: f32) -> egui::Shape {
 fn header(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> Rect {
     let palette = app.palette;
     let title = app.chat_title(chat);
-    egui::Panel::top("chat-header")
+    let rect = egui::Panel::top("chat-header")
         .show_separator_line(false)
         .frame(
             Frame::new()
@@ -462,8 +462,10 @@ fn header(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> Rect {
                     ui.add_space(theme::traffic_light_inset(ui.ctx()));
                 } else if app.sidebar_mode() == crate::model::SidebarDisplayMode::CollapsedIconsOnly
                     && app.page == crate::model::Page::Chats
+                    && !super::macos_title_strip(app, ui.ctx())
                 {
-                    // Beside the rail alone, the lights reach over this header.
+                    // Beside the rail alone, the lights reach over this header,
+                    // unless they have the strip above it.
                     ui.add_space(super::rail::lights_overhang(ui.ctx()));
                 }
                 ui.add_space(room.left);
@@ -976,7 +978,16 @@ fn header(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> Rect {
                 .data_mut(|data| data.insert_temp(header_row_id(), row.response.rect));
         })
         .response
-        .rect
+        .rect;
+    // The info panel beside the chat ends its header where this one ends.
+    ui.ctx()
+        .data_mut(|data| data.insert_temp(header_rect_id(), rect));
+    rect
+}
+
+/// Where the chat header was last laid out, for the panes beside it.
+pub(crate) fn header_rect_id() -> egui::Id {
+    egui::Id::new("conversation-header")
 }
 
 /// Where a narrow window's Back was laid out, for interaction tests.
@@ -1161,8 +1172,8 @@ fn emoji_candidates(app: &App, query: &str) -> Vec<EmojiSuggestion> {
             .settings
             .recent_emoji
             .iter()
-            .filter_map(|emoji| emojis::get(emoji))
-            .chain(emojis::iter())
+            .filter_map(|emoji| crate::emoji::lookup(emoji))
+            .chain(crate::emoji::catalogue())
             .filter(|emoji| seen.insert(emoji.as_str()))
             .take(LIMIT)
             .map(emoji_suggestion)
@@ -1170,7 +1181,7 @@ fn emoji_candidates(app: &App, query: &str) -> Vec<EmojiSuggestion> {
         return recent;
     }
 
-    let mut found: Vec<_> = emojis::iter()
+    let mut found: Vec<_> = crate::emoji::catalogue()
         .enumerate()
         .filter_map(|(order, emoji)| {
             emoji_match_score(emoji, &query).map(|score| (score, order, emoji))
@@ -7166,7 +7177,7 @@ fn quick_reactions<'a>(message: &'a Message, preferred: &'a [(String, u32)]) -> 
         .map(|(emoji, _)| emoji.as_str())
         .chain(QUICK_REACTIONS.iter().copied())
     {
-        if emojis::get(emoji).is_some() && !list.contains(&emoji) {
+        if crate::emoji::lookup(emoji).is_some() && !list.contains(&emoji) {
             list.push(emoji);
         }
         if list.len() == QUICK_REACTIONS.len() {
@@ -9186,6 +9197,19 @@ fn album_tile(
                 message: message.id.clone(),
             });
         }
+    } else if media.path.is_none()
+        && matches!(media.state, MediaState::Idle)
+        && ui.is_rect_visible(rect)
+        && auto_download_allowed(media, false, view.auto_download)
+    {
+        // A member comes into view as a single photo or video would, and
+        // downloads by itself under the same setting and size limit.
+        actions.push(Action::Download {
+            manual: false,
+            card: None,
+            chat: message.chat.clone(),
+            message: message.id.clone(),
+        });
     }
     ui.ctx()
         .data_mut(|data| data.insert_temp(album_tile_id(&view.chat.id, &message.id), rect));
